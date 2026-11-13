@@ -86,37 +86,27 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
 
+    - name: Generate Keystore
+      run: |
+        keytool -genkeypair -v -keystore ${{ github.workspace }}/release.jks -alias lailanet -keyalg RSA -keysize 2048 -validity 10000 -storepass lailanet123 -keypass lailanet123 -dname "CN=LailaNet, OU=Network, O=LailaNet, L=ID, ST=ID, C=ID"
+
     - name: Build APK
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
         chmod 755 gradlew
-        ./gradlew assembleDebug
+        ./gradlew assemblePlaystoreRelease -Pandroid.injected.signing.store.file=${{ github.workspace }}/release.jks -Pandroid.injected.signing.store.password=lailanet123 -Pandroid.injected.signing.key.alias=lailanet -Pandroid.injected.signing.key.password=lailanet123
     
     - name: Upload arm64-v8a APK
       uses: actions/upload-artifact@v7
       if: ${{ success() }}
       with:
         name: arm64-v8a
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/debug/*arm64-v8a*.apk
-
-    - name: Upload armeabi-v7a APK
-      uses: actions/upload-artifact@v7
-      if: ${{ success() }}
-      with:
-        name: armeabi-v7a
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/debug/*armeabi-v7a*.apk
-
-    - name: Upload x86 APK
-      uses: actions/upload-artifact@v7
-      if: ${{ success() }}
-      with:
-        name: x86-apk
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/debug/*x86*.apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release/*arm64-v8a*.apk
 
     - name: Upload universal APK
       uses: actions/upload-artifact@v7
       if: ${{ success() }}
       with:
         name: universal-apk
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/debug/*universal*.apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/release/*universal*.apk
