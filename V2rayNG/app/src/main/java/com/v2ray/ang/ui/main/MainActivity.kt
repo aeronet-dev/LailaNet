@@ -187,7 +187,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 }
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
                 MmkvManager.removeAllServer()
-                mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig))
+                mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig, "))
 
                 kotlinx.coroutines.delay(500)
                 val serverList = MmkvManager.decodeServerList()
