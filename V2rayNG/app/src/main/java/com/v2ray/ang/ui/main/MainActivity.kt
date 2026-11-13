@@ -211,9 +211,9 @@ class MainActivity : HelperBaseComponentActivity() {
 
                 // Bersihkan server lama & impor konfigurasi dari voucher
                 MmkvManager.removeAllServer()
-                val importCount = AngConfigManager.importBatchConfig(v2rayConfig, "", false)
+                val importResult = AngConfigManager.importBatchConfig(v2rayConfig, "", "")
 
-                if (importCount > 0) {
+                if (importResult.first > 0) {
                     val serverList = MmkvManager.decodeServerList()
                     if (serverList.isNotEmpty()) {
                         val targetGuid = serverList.first()
@@ -247,7 +247,6 @@ class MainActivity : HelperBaseComponentActivity() {
         }
 
         // 2. Daftar kode voucher lokal (untuk testing tanpa server)
-        // Ganti teks vmess://... di bawah dengan akun server Anda yang asli
         val localVouchers = mapOf(
             "LAILA-8899" to "vmess://GANTI_DENGAN_LINK_VMESS_ASLI_ANDA",
             "LAILA-1234" to "vless://GANTI_DENGAN_LINK_VLESS_ASLI_ANDA"
@@ -258,3 +257,5 @@ class MainActivity : HelperBaseComponentActivity() {
         return try {
             val apiUrl = "https://domainanda.com"
             val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
