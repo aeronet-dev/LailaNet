@@ -172,7 +172,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-    private fun processVoucherAndConnect(
+        private fun processVoucherAndConnect(
         voucherInput: String,
         onLoading: (Boolean, String) -> Unit
     ) {
@@ -187,23 +187,16 @@ class MainActivity : HelperBaseComponentActivity() {
                 }
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
                 MmkvManager.removeAllServer()
-                val importResult = AngConfigManager.importBatchConfig(
-                    server = v2rayConfig,
-                    subid = "",
-                    append = false,
-                    subscriptionId = ""
-                )
-                if (importResult.first > 0) {
-                    val serverList = MmkvManager.decodeServerList()
-                    if (serverList.isNotEmpty()) {
-                        val targetGuid = serverList.first()
-                        MmkvManager.setSelectServer(targetGuid)
-                        mainViewModel.updateSelectedGuid(targetGuid)
-                        onLoading(false, "")
-                        requestServiceStart()
-                    } else {
-                        onLoading(false, "Status: Gagal memuat profil server")
-                    }
+                mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig))
+
+                kotlinx.coroutines.delay(500)
+                val serverList = MmkvManager.decodeServerList()
+                if (serverList.isNotEmpty()) {
+                    val targetGuid = serverList.first()
+                    MmkvManager.setSelectServer(targetGuid)
+                    mainViewModel.updateSelectedGuid(targetGuid)
+                    onLoading(false, "")
+                    requestServiceStart()
                 } else {
                     onLoading(false, "Status: Format konfigurasi server salah")
                 }
