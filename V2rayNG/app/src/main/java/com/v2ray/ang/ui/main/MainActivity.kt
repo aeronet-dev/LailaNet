@@ -187,7 +187,12 @@ class MainActivity : HelperBaseComponentActivity() {
                 }
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
                 MmkvManager.removeAllServer()
-                val importResult = AngConfigManager.importBatchConfig(v2rayConfig, "", false)
+                val importResult = AngConfigManager.importBatchConfig(
+                    server = v2rayConfig,
+                    subid = "",
+                    append = false,
+                    subscriptionId = ""
+                )
                 if (importResult.first > 0) {
                     val serverList = MmkvManager.decodeServerList()
                     if (serverList.isNotEmpty()) {
@@ -252,3 +257,18 @@ class MainActivity : HelperBaseComponentActivity() {
             toast("Profil server belum terpilih")
             return
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+            checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
+        }
+        LauncherManager.startService(this)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
+            moveTaskToBack(false)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+}
+// AKHIR FILE
