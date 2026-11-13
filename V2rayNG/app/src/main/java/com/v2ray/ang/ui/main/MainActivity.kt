@@ -84,34 +84,25 @@ class MainActivity : HelperBaseComponentActivity() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo LailaNet
             Image(
                 painter = painterResource(id = R.mipmap.ic_launcher),
                 contentDescription = "Logo LailaNet",
                 modifier = Modifier.size(96.dp)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Header Nama Aplikasi
             Text(
                 text = "LailaNet",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B)
             )
-
             Spacer(modifier = Modifier.height(4.dp))
-
             Text(
                 text = "Masukkan kode voucher untuk terhubung",
                 fontSize = 14.sp,
                 color = Color(0xFF64748B)
             )
-
             Spacer(modifier = Modifier.height(36.dp))
-
-            // Kolom Input Voucher
             OutlinedTextField(
                 value = voucherCode,
                 onValueChange = { voucherCode = it },
@@ -132,10 +123,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
-
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Tombol Besar Hubungkan / Putuskan
             Button(
                 onClick = {
                     if (isRunning) {
@@ -147,13 +135,10 @@ class MainActivity : HelperBaseComponentActivity() {
                             toast("Masukkan kode voucher terlebih dahulu")
                             return@Button
                         }
-                        processVoucherAndConnect(
-                            voucherInput = input,
-                            onLoading = { loading, msg ->
-                                isLoading = loading
-                                statusMessage = msg
-                            }
-                        )
+                        processVoucherAndConnect(input) { loading, msg ->
+                            isLoading = loading
+                            statusMessage = msg
+                        }
                     }
                 },
                 enabled = !isLoading,
@@ -176,10 +161,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     color = Color.White
                 )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Indikator Status Koneksi
             Text(
                 text = currentStatusText,
                 fontSize = 14.sp,
@@ -195,24 +177,17 @@ class MainActivity : HelperBaseComponentActivity() {
         onLoading: (Boolean, String) -> Unit
     ) {
         onLoading(true, "Status: Memeriksa kode voucher...")
-
         lifecycleScope.launch(Dispatchers.IO) {
             val v2rayConfig = resolveVoucherToConfig(voucherInput)
-
             withContext(Dispatchers.Main) {
                 if (v2rayConfig.isNullOrEmpty()) {
                     onLoading(false, "Status: Kode voucher tidak valid atau kedaluwarsa")
                     toast("Kode voucher tidak valid")
                     return@withContext
                 }
-
-                // Simpan kode voucher terakhir
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
-
-                // Bersihkan server lama & impor konfigurasi dari voucher
                 MmkvManager.removeAllServer()
-                val importResult = AngConfigManager.importBatchConfig(v2rayConfig, "", "")
-
+                val importResult = AngConfigManager.importBatchConfig(v2rayConfig, "", false)
                 if (importResult.first > 0) {
                     val serverList = MmkvManager.decodeServerList()
                     if (serverList.isNotEmpty()) {
@@ -231,11 +206,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-    /**
-     * Mengubah kode voucher menjadi link konfigurasi V2Ray (vmess://, vless://, trojan://, dll).
-     */
     private fun resolveVoucherToConfig(voucher: String): String? {
-        // 1. Jika user langsung memasukkan link vmess/vless/trojan, langsung gunakan
         val lower = voucher.lowercase()
         if (lower.startsWith("vmess://") ||
             lower.startsWith("vless://") ||
@@ -245,17 +216,39 @@ class MainActivity : HelperBaseComponentActivity() {
         ) {
             return voucher
         }
-
-        // 2. Daftar kode voucher lokal (untuk testing tanpa server)
         val localVouchers = mapOf(
             "LAILA-8899" to "vmess://GANTI_DENGAN_LINK_VMESS_ASLI_ANDA",
             "LAILA-1234" to "vless://GANTI_DENGAN_LINK_VLESS_ASLI_ANDA"
         )
         localVouchers[voucher.uppercase()]?.let { return it }
-
-        // 3. Cek ke server API Anda (jika kode tidak ada di daftar lokal)
         return try {
             val apiUrl = "https://domainanda.com"
             val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8000
+                readTimeout = 8000
+            }
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                connection.inputStream.bufferedReader().use { it.readText().trim() }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun requestServiceStart() {
+        if (!SettingsManager.isVpnMode()) {
+            startV2Ray()
+            return
+        }
+        val intent = VpnService.prepare(this)
+        if (intent == null) startV2Ray() else requestVpnPermission.launch(intent)
+    }
+
+    private fun startV2Ray() {
+        if (mainViewModel.uiState.value.selectedGuid.isNullOrEmpty()) {
+            toast("Profil server belum terpilih")
+            return
+        }
