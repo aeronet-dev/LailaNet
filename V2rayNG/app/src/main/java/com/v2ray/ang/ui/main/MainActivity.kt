@@ -190,7 +190,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig))
 
                 kotlinx.coroutines.delay(500)
-                val serverList = MmkvManager.decodeServerList()
+                val serverList = MmkvManager.decodeServerList("")
                 if (serverList.isNotEmpty()) {
                     val targetGuid = serverList.first()
                     MmkvManager.setSelectServer(targetGuid)
