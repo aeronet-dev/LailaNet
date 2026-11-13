@@ -1,8 +1,10 @@
 package com.v2ray.ang.ui.main
 
+import android.annotation.SuppressLint
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,6 +54,11 @@ class MainActivity : HelperBaseComponentActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == RESULT_OK) startV2Ray()
         }
+
+    @SuppressLint("HardwareIds")
+    private fun getDeviceId(): String {
+        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,6 +150,8 @@ class MainActivity : HelperBaseComponentActivity() {
             Button(
                 onClick = {
                     if (isRunning) {
+                        val input = voucherCode.trim()
+                        releaseDeviceLock(input)
                         statusMessage = ""
                         LauncherManager.stopService(this@MainActivity)
                     } else {
@@ -218,12 +227,14 @@ class MainActivity : HelperBaseComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val result = fetchVoucherData(voucherInput)
             withContext(Dispatchers.Main) {
-                if (result == null) {
-                    onState(false, "Status: Kode voucher tidak valid atau kedaluwarsa", null)
-                    toast("Kode voucher tidak valid")
+                if (result.first == null) {
+                    val errMsg = result.second ?: "Kode voucher tidak valid"
+                    onState(false, "Status: $errMsg", null)
+                    toast(errMsg)
                     return@withContext
                 }
-                val (v2rayConfig, expired) = result
+                val v2rayConfig = result.first!!
+                val expired = result.second ?: "Aktif"
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
                 MmkvManager.encodeSettings("LAST_VOUCHER_EXP", expired)
                 MmkvManager.removeAllServer()
@@ -244,7 +255,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-    private fun fetchVoucherData(voucher: String): Pair<String, String>? {
+        private fun fetchVoucherData(voucher: String): Pair<String?, String?> {
         val lower = voucher.lowercase()
         if (lower.startsWith("vmess://") ||
             lower.startsWith("vless://") ||
@@ -252,33 +263,46 @@ class MainActivity : HelperBaseComponentActivity() {
             lower.startsWith("ss://") ||
             lower.startsWith("hysteria2://")
         ) {
-            return Pair(voucher, "Akses Langsung (Non-Voucher)")
+            return Pair(voucher, "Akses Langsung")
         }
 
-                return try {
+        return try {
             val host = "lailanet-voucher.hendrytdr96"
-val apiUrl = "https://$host.workers.dev/?kode=$voucher"
-
+            val devId = getDeviceId()
+            val apiUrl = "https://$host.workers.dev/?kode=$voucher&device=$devId"
             val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8000
                 readTimeout = 8000
             }
-            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
-                val json = JSONObject(responseText)
-                if (json.optString("status") == "ok") {
-                    val cfg = json.getString("config")
-                    val exp = json.optString("expired", "Aktif")
-                    Pair(cfg, exp)
-                } else {
-                    null
-                }
+            val code = connection.responseCode
+            val stream = if (code == HttpURLConnection.HTTP_OK) connection.inputStream else connection.errorStream
+            val responseText = stream?.bufferedReader()?.use { it.readText() } ?: ""
+            val json = JSONObject(responseText)
+
+            if (code == HttpURLConnection.HTTP_OK && json.optString("status") == "ok") {
+                Pair(json.getString("config"), json.optString("expired", "Aktif"))
             } else {
-                null
+                Pair(null, json.optString("message", "Kode voucher tidak valid"))
             }
         } catch (e: Exception) {
-            null
+            Pair(null, "Gagal terhubung ke server voucher")
+        }
+    }
+
+    private fun releaseDeviceLock(voucher: String) {
+        if (voucher.isEmpty() || voucher.contains("://")) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val host = "lailanet-voucher.hendrytdr96"
+                val devId = getDeviceId()
+                val logoutUrl = "https://$host.workers.dev/logout?kode=$voucher&device=$devId"
+                (URL(logoutUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                }.inputStream.close()
+            } catch (_: Exception) { }
         }
     }
 
