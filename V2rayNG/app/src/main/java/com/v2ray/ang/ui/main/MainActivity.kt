@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -29,13 +31,14 @@ import com.v2ray.ang.R
 import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.enums.PermissionType
 import com.v2ray.ang.extension.toast
-import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -66,6 +69,9 @@ class MainActivity : HelperBaseComponentActivity() {
         var voucherCode by remember {
             mutableStateOf(MmkvManager.decodeSettingsString("LAST_VOUCHER_CODE") ?: "")
         }
+        var expiredDate by remember {
+            mutableStateOf(MmkvManager.decodeSettingsString("LAST_VOUCHER_EXP") ?: "")
+        }
         var isLoading by remember { mutableStateOf(false) }
         var statusMessage by remember { mutableStateOf("") }
 
@@ -87,29 +93,37 @@ class MainActivity : HelperBaseComponentActivity() {
             Image(
                 painter = painterResource(id = R.mipmap.ic_launcher),
                 contentDescription = "Logo LailaNet",
-                modifier = Modifier.size(96.dp)
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(22.dp))
             )
+
             Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = "LailaNet",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B)
             )
+
             Spacer(modifier = Modifier.height(4.dp))
+
             Text(
                 text = "Masukkan kode voucher untuk terhubung",
                 fontSize = 14.sp,
                 color = Color(0xFF64748B)
             )
+
             Spacer(modifier = Modifier.height(36.dp))
+
             OutlinedTextField(
                 value = voucherCode,
                 onValueChange = { voucherCode = it },
                 enabled = !isRunning && !isLoading,
                 singleLine = true,
                 label = { Text("Kode Voucher") },
-                placeholder = { Text("Contoh: LAILA-8899") },
+                placeholder = { Text("Contoh: LAILA-001") },
                 shape = RoundedCornerShape(14.dp),
                 textStyle = LocalTextStyle.current.copy(
                     textAlign = TextAlign.Center,
@@ -123,7 +137,9 @@ class MainActivity : HelperBaseComponentActivity() {
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+
             Spacer(modifier = Modifier.height(24.dp))
+
             Button(
                 onClick = {
                     if (isRunning) {
@@ -135,9 +151,10 @@ class MainActivity : HelperBaseComponentActivity() {
                             toast("Masukkan kode voucher terlebih dahulu")
                             return@Button
                         }
-                        processVoucherAndConnect(input) { loading, msg ->
+                        processVoucherAndConnect(input) { loading, msg, exp ->
                             isLoading = loading
                             statusMessage = msg
+                            if (exp != null) expiredDate = exp
                         }
                     }
                 },
@@ -161,7 +178,9 @@ class MainActivity : HelperBaseComponentActivity() {
                     color = Color.White
                 )
             }
+
             Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 text = currentStatusText,
                 fontSize = 14.sp,
@@ -169,42 +188,63 @@ class MainActivity : HelperBaseComponentActivity() {
                 color = if (isRunning) Color(0xFF16A34A) else Color(0xFF64748B),
                 textAlign = TextAlign.Center
             )
-        }
-    }
 
-        private fun processVoucherAndConnect(
-        voucherInput: String,
-        onLoading: (Boolean, String) -> Unit
-    ) {
-        onLoading(true, "Status: Memeriksa kode voucher...")
-        lifecycleScope.launch(Dispatchers.IO) {
-            val v2rayConfig = resolveVoucherToConfig(voucherInput)
-            withContext(Dispatchers.Main) {
-                if (v2rayConfig.isNullOrEmpty()) {
-                    onLoading(false, "Status: Kode voucher tidak valid atau kedaluwarsa")
-                    toast("Kode voucher tidak valid")
-                    return@withContext
-                }
-                MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
-                MmkvManager.removeAllServer()
-                mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig))
-
-                kotlinx.coroutines.delay(500)
-                val serverList = MmkvManager.decodeServerList("")
-                if (serverList.isNotEmpty()) {
-                    val targetGuid = serverList.first()
-                    MmkvManager.setSelectServer(targetGuid)
-                    mainViewModel.updateSelectedGuid(targetGuid)
-                    onLoading(false, "")
-                    requestServiceStart()
-                } else {
-                    onLoading(false, "Status: Format konfigurasi server salah")
+            if (isRunning && expiredDate.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFDCFCE7), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFF86EFAC), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Masa Aktif Voucher: $expiredDate",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF166534)
+                    )
                 }
             }
         }
     }
 
-    private fun resolveVoucherToConfig(voucher: String): String? {
+    private fun processVoucherAndConnect(
+        voucherInput: String,
+        onState: (Boolean, String, String?) -> Unit
+    ) {
+        onState(true, "Status: Memeriksa kode voucher...", null)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = fetchVoucherData(voucherInput)
+            withContext(Dispatchers.Main) {
+                if (result == null) {
+                    onState(false, "Status: Kode voucher tidak valid atau kedaluwarsa", null)
+                    toast("Kode voucher tidak valid")
+                    return@withContext
+                }
+                val (v2rayConfig, expired) = result
+                MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
+                MmkvManager.encodeSettings("LAST_VOUCHER_EXP", expired)
+                MmkvManager.removeAllServer()
+                mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig))
+
+                delay(500)
+                val serverList = MmkvManager.decodeServerList("")
+                if (serverList.isNotEmpty()) {
+                    val targetGuid = serverList.first()
+                    MmkvManager.setSelectServer(targetGuid)
+                    mainViewModel.updateSelectedGuid(targetGuid)
+                    onState(false, "", expired)
+                    requestServiceStart()
+                } else {
+                    onState(false, "Status: Format konfigurasi server salah", null)
+                }
+            }
+        }
+    }
+
+    private fun fetchVoucherData(voucher: String): Pair<String, String>? {
         val lower = voucher.lowercase()
         if (lower.startsWith("vmess://") ||
             lower.startsWith("vless://") ||
@@ -212,22 +252,28 @@ class MainActivity : HelperBaseComponentActivity() {
             lower.startsWith("ss://") ||
             lower.startsWith("hysteria2://")
         ) {
-            return voucher
+            return Pair(voucher, "Akses Langsung (Non-Voucher)")
         }
-        val localVouchers = mapOf(
-            "LAILA-8899" to "vmess://GANTI_DENGAN_LINK_VMESS_ASLI_ANDA",
-            "LAILA-1234" to "vless://GANTI_DENGAN_LINK_VLESS_ASLI_ANDA"
-        )
-        localVouchers[voucher.uppercase()]?.let { return it }
-        return try {
-            val apiUrl = "https://domainanda.com"
+
+                return try {
+            val host = "lailanet-voucher.hendrytdr96"
+val apiUrl = "https://$host.workers.dev/?kode=$voucher"
+
             val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8000
                 readTimeout = 8000
             }
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
-                connection.inputStream.bufferedReader().use { it.readText().trim() }
+                val responseText = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(responseText)
+                if (json.optString("status") == "ok") {
+                    val cfg = json.getString("config")
+                    val exp = json.optString("expired", "Aktif")
+                    Pair(cfg, exp)
+                } else {
+                    null
+                }
             } else {
                 null
             }
