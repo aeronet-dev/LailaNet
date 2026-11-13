@@ -1,6 +1,5 @@
 package com.v2ray.ang.ui.main
 
-import android.content.Intent
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -8,51 +7,37 @@ import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.AngApplication
-import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.LauncherManager
-import com.v2ray.ang.dto.entities.ProfileItem
-import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.PermissionType
 import com.v2ray.ang.extension.toast
-import com.v2ray.ang.extension.toastError
-import com.v2ray.ang.extension.toastSuccess
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.MmkvManager
-import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
-import com.v2ray.ang.handler.SubscriptionInfoParser
-import com.v2ray.ang.ui.AboutActivity
-import com.v2ray.ang.ui.backup.BackupActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
-import com.v2ray.ang.ui.checkupdate.CheckUpdateActivity
-import com.v2ray.ang.ui.logcat.LogcatActivity
-import com.v2ray.ang.ui.perappproxy.PerAppProxyActivity
-import com.v2ray.ang.ui.routing.RoutingSettingActivity
-import com.v2ray.ang.ui.server.ProfileEditorResult
-import com.v2ray.ang.ui.server.ServerCustomConfigActivity
-import com.v2ray.ang.ui.server.ServerGroupActivity
-import com.v2ray.ang.ui.server.ServerHttpActivity
-import com.v2ray.ang.ui.server.ServerHysteria2Activity
-import com.v2ray.ang.ui.server.ServerMasqueActivity
-import com.v2ray.ang.ui.server.ServerProxyChainActivity
-import com.v2ray.ang.ui.server.ServerShadowsocksActivity
-import com.v2ray.ang.ui.server.ServerSocksActivity
-import com.v2ray.ang.ui.server.ServerTrojanActivity
-import com.v2ray.ang.ui.server.ServerVlessActivity
-import com.v2ray.ang.ui.server.ServerVmessActivity
-import com.v2ray.ang.ui.server.ServerWireguardActivity
-import com.v2ray.ang.ui.settings.SettingsActivity
-import com.v2ray.ang.ui.subscription.SubSettingActivity
-import com.v2ray.ang.ui.userasset.UserAssetActivity
-import com.v2ray.ang.util.LogUtil
-import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
 
 class MainActivity : HelperBaseComponentActivity() {
 
@@ -65,233 +50,211 @@ class MainActivity : HelperBaseComponentActivity() {
             if (it.resultCode == RESULT_OK) startV2Ray()
         }
 
-    private val profileEditorLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode != RESULT_OK) return@registerForActivityResult
-            val data = result.data ?: return@registerForActivityResult
-            val action = data.getStringExtra(ProfileEditorResult.EXTRA_ACTION)
-                ?: return@registerForActivityResult
-            if (action != ProfileEditorResult.ACTION_SAVED &&
-                action != ProfileEditorResult.ACTION_DELETED
-            ) return@registerForActivityResult
-            val restartService = data.getBooleanExtra(
-                ProfileEditorResult.EXTRA_RESTART_SERVICE, false
-            )
-            val selectedProfileSaved = action == ProfileEditorResult.ACTION_SAVED &&
-                    data.getStringExtra(ProfileEditorResult.EXTRA_GUID) == mainViewModel.uiState.value.selectedGuid
-            mainViewModel.onAction(MainAction.RefreshGroups)
-            if (restartService || selectedProfileSaved) LauncherManager.restartService(this)
-        }
-
-    private val settingsActivityLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            val restartService = SettingsChangeManager.consumeRestartService()
-            val refreshGroups = SettingsChangeManager.consumeSetupGroupTab()
-            mainViewModel.refreshUiSettings()
-            if (refreshGroups) mainViewModel.onAction(MainAction.RefreshGroups)
-            if (restartService) LauncherManager.restartService(this)
-        }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         mainViewModel.onAction(MainAction.Initialize)
-
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
     }
 
     @Composable
     override fun ScreenContent() {
         BackHandler { moveTaskToBack(false) }
-        MainScreen(
-            mainViewModel = mainViewModel,
-            onAction = { action ->
-                when (action) {
-                    MainAction.ToggleService -> handleFabAction()
-                    MainAction.TestCurrentServer -> handleLayoutTestClick()
-                    MainAction.ImportQRcode -> importQRcode()
-                    MainAction.ImportClipboard -> importClipboard()
-                    MainAction.ImportConfigLocal -> importConfigLocal()
-                    is MainAction.ImportManually -> importManually(action.type)
-                    MainAction.RestartService -> LauncherManager.restartServiceOrStart(this, ::requestServiceStart)
-                    MainAction.LocateSelectedServer -> mainViewModel.triggerLocateSelectedServer()
-                    is MainAction.SelectServer -> setSelectServer(action.guid)
-                    is MainAction.EditServer -> editServer(action.guid, action.profile)
-                    is MainAction.ShareClipboard -> shareToClipboard(action.guid)
-                    is MainAction.ShareFullContent -> shareFullContentAsync(action.guid)
-                    is MainAction.OpenSubscriptionLink -> openSubscriptionLink(action.url)
-                    else -> mainViewModel.onAction(action)
-                }
-            },
-            onNavigate = { route -> navigateTo(route) },
-        )
-    }
 
-    private fun shareToClipboard(guid: String): Boolean =
-        AngConfigManager.share2Clipboard(this, guid) == 0
+        val uiState by mainViewModel.uiState.collectAsState()
+        val isRunning = uiState.isRunning
 
-    private fun shareFullContentAsync(guid: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val result = AngConfigManager.shareFullContent2Clipboard(this@MainActivity, guid)
-            withContext(Dispatchers.Main) {
-                if (result == 0) toastSuccess(R.string.toast_success)
-                else toastError(R.string.toast_failure)
-            }
+        var voucherCode by remember {
+            mutableStateOf(MmkvManager.decodeSettingsString("LAST_VOUCHER_CODE") ?: "")
         }
-    }
+        var isLoading by remember { mutableStateOf(false) }
+        var statusMessage by remember { mutableStateOf("") }
 
-    private fun openSubscriptionLink(url: String) {
-        // Links come from a remote panel, so only http(s) and tg:// are ever handed to ACTION_VIEW.
-        val safeUrl = SubscriptionInfoParser.sanitizeLink(url) ?: return
-        Utils.openUri(this, safeUrl)
-    }
-
-    private fun navigateTo(destination: MainDestination) {
-        val intent = when (destination) {
-            MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
-            MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
-            MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)
-            MainDestination.UserAssets -> Intent(this, UserAssetActivity::class.java)
-            MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
-            MainDestination.Logcat -> Intent(this, LogcatActivity::class.java)
-            MainDestination.CheckUpdate -> Intent(this, CheckUpdateActivity::class.java)
-            MainDestination.BackupRestore -> Intent(this, BackupActivity::class.java)
-            MainDestination.About -> Intent(this, AboutActivity::class.java)
-            MainDestination.Promotion -> {
-                Utils.openUri(
-                    this,
-                    "${Utils.decode(AppConfig.APP_PROMOTION_URL)}?t=${System.currentTimeMillis()}"
-                )
-                return
-            }
+        val currentStatusText = when {
+            isLoading -> statusMessage
+            isRunning -> "Status: Terhubung (LailaNet Aktif)"
+            statusMessage.isNotEmpty() -> statusMessage
+            else -> "Status: Terputus"
         }
-        settingsActivityLauncher.launch(intent)
-    }
 
-    private fun handleFabAction() {
-        if (mainViewModel.uiState.value.isRunning) {
-            LauncherManager.stopService(this)
-        } else {
-            requestServiceStart()
-        }
-    }
-
-    private fun requestServiceStart() {
-        if (!SettingsManager.isVpnMode()) {
-            startV2Ray()
-            return
-        }
-        val intent = VpnService.prepare(this)
-        if (intent == null) startV2Ray() else requestVpnPermission.launch(intent)
-    }
-
-    private fun handleLayoutTestClick() {
-        if (mainViewModel.uiState.value.isRunning) {
-            mainViewModel.testCurrentServerRealPing()
-        }
-    }
-
-    private fun startV2Ray() {
-        if (mainViewModel.uiState.value.selectedGuid.isNullOrEmpty()) {
-            toast(R.string.title_file_chooser)
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F7FA))
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
-        }
-        LauncherManager.startService(this)
-    }
+            // Logo LailaNet
+            Image(
+                painter = painterResource(id = R.mipmap.ic_launcher),
+                contentDescription = "Logo LailaNet",
+                modifier = Modifier.size(96.dp)
+            )
 
-    private fun importManually(createConfigType: Int) {
-        val intent = when (createConfigType) {
-            EConfigType.POLICYGROUP.value -> Intent(this, ServerGroupActivity::class.java)
-            EConfigType.PROXYCHAIN.value -> Intent(this, ServerProxyChainActivity::class.java)
-            EConfigType.VMESS.value -> Intent(this, ServerVmessActivity::class.java)
-            EConfigType.VLESS.value -> Intent(this, ServerVlessActivity::class.java)
-            EConfigType.SHADOWSOCKS.value -> Intent(this, ServerShadowsocksActivity::class.java)
-            EConfigType.SOCKS.value -> Intent(this, ServerSocksActivity::class.java)
-            EConfigType.HTTP.value -> Intent(this, ServerHttpActivity::class.java)
-            EConfigType.TROJAN.value -> Intent(this, ServerTrojanActivity::class.java)
-            EConfigType.WIREGUARD.value -> Intent(this, ServerWireguardActivity::class.java)
-            EConfigType.HYSTERIA2.value -> Intent(this, ServerHysteria2Activity::class.java)
-            EConfigType.MASQUE.value -> Intent(this, ServerMasqueActivity::class.java)
-            else -> Intent(this, ServerHttpActivity::class.java).apply {
-                putExtra("createConfigType", createConfigType)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Header Nama Aplikasi
+            Text(
+                text = "LailaNet",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Masukkan kode voucher untuk terhubung",
+                fontSize = 14.sp,
+                color = Color(0xFF64748B)
+            )
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // Kolom Input Voucher
+            OutlinedTextField(
+                value = voucherCode,
+                onValueChange = { voucherCode = it },
+                enabled = !isRunning && !isLoading,
+                singleLine = true,
+                label = { Text("Kode Voucher") },
+                placeholder = { Text("Contoh: LAILA-8899") },
+                shape = RoundedCornerShape(14.dp),
+                textStyle = LocalTextStyle.current.copy(
+                    textAlign = TextAlign.Center,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.5.sp
+                ),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters,
+                    autoCorrectEnabled = false
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Tombol Besar Hubungkan / Putuskan
+            Button(
+                onClick = {
+                    if (isRunning) {
+                        statusMessage = ""
+                        LauncherManager.stopService(this@MainActivity)
+                    } else {
+                        val input = voucherCode.trim()
+                        if (input.isEmpty()) {
+                            toast("Masukkan kode voucher terlebih dahulu")
+                            return@Button
+                        }
+                        processVoucherAndConnect(
+                            voucherInput = input,
+                            onLoading = { loading, msg ->
+                                isLoading = loading
+                                statusMessage = msg
+                            }
+                        )
+                    }
+                },
+                enabled = !isLoading,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isRunning) Color(0xFFDC2626) else Color(0xFF2563EB)
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+            ) {
+                Text(
+                    text = when {
+                        isLoading -> "MEMPROSES..."
+                        isRunning -> "PUTUSKAN"
+                        else -> "HUBUNGKAN"
+                    },
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
-        }.apply {
-            putExtra("subscriptionId", mainViewModel.uiState.value.selectedGroupId)
-        }
-        profileEditorLauncher.launch(intent)
-    }
 
-    private fun importQRcode() {
-        launchQRCodeScanner { scanResult ->
-            if (scanResult != null) {
-                mainViewModel.onAction(MainAction.ImportBatchConfig(scanResult))
-            }
-        }
-    }
+            Spacer(modifier = Modifier.height(16.dp))
 
-    private fun importClipboard() {
-        try {
-            val text = Utils.getClipboard(this)
-            mainViewModel.onAction(MainAction.ImportBatchConfig(text))
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to import config from clipboard", e)
+            // Indikator Status Koneksi
+            Text(
+                text = currentStatusText,
+                fontSize = 14.sp,
+                fontWeight = if (isRunning) FontWeight.Medium else FontWeight.Normal,
+                color = if (isRunning) Color(0xFF16A34A) else Color(0xFF64748B),
+                textAlign = TextAlign.Center
+            )
         }
     }
 
-    private fun importConfigLocal() {
-        launchFileChooser { uri ->
-            if (uri == null) return@launchFileChooser
-            try {
-                contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
-                    mainViewModel.onAction(MainAction.ImportBatchConfig(reader.readText()))
+    private fun processVoucherAndConnect(
+        voucherInput: String,
+        onLoading: (Boolean, String) -> Unit
+    ) {
+        onLoading(true, "Status: Memeriksa kode voucher...")
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val v2rayConfig = resolveVoucherToConfig(voucherInput)
+
+            withContext(Dispatchers.Main) {
+                if (v2rayConfig.isNullOrEmpty()) {
+                    onLoading(false, "Status: Kode voucher tidak valid atau kedaluwarsa")
+                    toast("Kode voucher tidak valid")
+                    return@withContext
                 }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to read content from URI", e)
+
+                // Simpan kode voucher terakhir
+                MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
+
+                // Bersihkan server lama & impor konfigurasi dari voucher
+                MmkvManager.removeAllServer()
+                val importCount = AngConfigManager.importBatchConfig(v2rayConfig, "", false)
+
+                if (importCount > 0) {
+                    val serverList = MmkvManager.decodeServerList()
+                    if (serverList.isNotEmpty()) {
+                        val targetGuid = serverList.first()
+                        MmkvManager.setSelectServer(targetGuid)
+                        mainViewModel.updateSelectedGuid(targetGuid)
+                        onLoading(false, "")
+                        requestServiceStart()
+                    } else {
+                        onLoading(false, "Status: Gagal memuat profil server")
+                    }
+                } else {
+                    onLoading(false, "Status: Format konfigurasi server salah")
+                }
             }
         }
     }
 
-    private fun editServer(guid: String, profile: ProfileItem) {
-        val activityClass = when (profile.configType) {
-            EConfigType.CUSTOM, EConfigType.CUSTOM_OUTBOUND -> ServerCustomConfigActivity::class.java
-            EConfigType.POLICYGROUP -> ServerGroupActivity::class.java
-            EConfigType.PROXYCHAIN -> ServerProxyChainActivity::class.java
-            EConfigType.VMESS -> ServerVmessActivity::class.java
-            EConfigType.VLESS -> ServerVlessActivity::class.java
-            EConfigType.SHADOWSOCKS -> ServerShadowsocksActivity::class.java
-            EConfigType.SOCKS -> ServerSocksActivity::class.java
-            EConfigType.HTTP -> ServerHttpActivity::class.java
-            EConfigType.TROJAN -> ServerTrojanActivity::class.java
-            EConfigType.WIREGUARD -> ServerWireguardActivity::class.java
-            EConfigType.HYSTERIA2 -> ServerHysteria2Activity::class.java
-            EConfigType.MASQUE -> ServerMasqueActivity::class.java
-            else -> ServerHttpActivity::class.java
+    /**
+     * Mengubah kode voucher menjadi link konfigurasi V2Ray (vmess://, vless://, trojan://, dll).
+     */
+    private fun resolveVoucherToConfig(voucher: String): String? {
+        // 1. Jika user langsung memasukkan link vmess/vless/trojan, langsung gunakan
+        val lower = voucher.lowercase()
+        if (lower.startsWith("vmess://") ||
+            lower.startsWith("vless://") ||
+            lower.startsWith("trojan://") ||
+            lower.startsWith("ss://") ||
+            lower.startsWith("hysteria2://")
+        ) {
+            return voucher
         }
-        val intent = Intent(this, activityClass).apply {
-            putExtra("guid", guid)
-            putExtra("isRunning", mainViewModel.uiState.value.isRunning)
-            putExtra("createConfigType", profile.configType.value)
-            putExtra("subscriptionId", mainViewModel.uiState.value.selectedGroupId)
-        }
-        profileEditorLauncher.launch(intent)
-    }
 
-    private fun setSelectServer(guid: String) {
-        val selected = mainViewModel.uiState.value.selectedGuid
-        if (guid != selected) {
-            mainViewModel.updateSelectedGuid(guid)
-            LauncherManager.restartService(this)
-        }
-    }
+        // 2. Daftar kode voucher lokal (untuk testing tanpa server)
+        // Ganti teks vmess://... di bawah dengan akun server Anda yang asli
+        val localVouchers = mapOf(
+            "LAILA-8899" to "vmess://GANTI_DENGAN_LINK_VMESS_ASLI_ANDA",
+            "LAILA-1234" to "vless://GANTI_DENGAN_LINK_VLESS_ASLI_ANDA"
+        )
+        localVouchers[voucher.uppercase()]?.let { return it }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
-            moveTaskToBack(false)
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-}
+        // 3. Cek ke server API Anda (jika kode tidak ada di daftar lokal)
+        return try {
+            val apiUrl = "https://domainanda.com"
+            val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
