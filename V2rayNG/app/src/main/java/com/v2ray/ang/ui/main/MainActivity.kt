@@ -294,8 +294,26 @@ class MainActivity : HelperBaseComponentActivity() {
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF16A34A)
-                    )
-                }
+                    ) }
+            }
+            
+                           Spacer(modifier = Modifier.height(20.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFEFF6FF), RoundedCornerShape(10.dp))
+                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = "Info: Pastikan HP terhubung ke Wi-Fi atau kartu seluler dengan paket data aktif agar voucher dapat terhubung.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF1E40AF),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 16.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
