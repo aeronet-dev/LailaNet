@@ -56,7 +56,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
 
     @SuppressLint("HardwareIds")
-    private fun getDeviceId(): String {
+    private fun fetchHardwareId(): String {
         return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
     }
 
@@ -268,7 +268,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
         return try {
             val host = "lailanet-voucher.hendrytdr96"
-            val devId = getDeviceId()
+            val devId = fetchHardwareId()
             val apiUrl = "https://$host.workers.dev/?kode=$voucher&device=$devId"
             val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -295,7 +295,7 @@ class MainActivity : HelperBaseComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val host = "lailanet-voucher.hendrytdr96"
-                val devId = getDeviceId()
+                val devId = fetchHardwareId()
                 val logoutUrl = "https://$host.workers.dev/logout?kode=$voucher&device=$devId"
                 (URL(logoutUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
