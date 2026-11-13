@@ -1,6 +1,8 @@
 package com.v2ray.ang.ui.main
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -9,12 +11,16 @@ import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +49,14 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+
+data class VoucherPackage(
+    val nama: String,
+    val durasi: String,
+    val harga: String,
+    val ket: String
+)
 
 class MainActivity : HelperBaseComponentActivity() {
 
@@ -82,6 +96,31 @@ class MainActivity : HelperBaseComponentActivity() {
         var isLoading by remember { mutableStateOf(false) }
         var statusMessage by remember { mutableStateOf("") }
 
+        var showPriceDialog by remember { mutableStateOf(false) }
+        var adminWa by remember { mutableStateOf("6281234567890") }
+        var packageList by remember {
+            mutableStateOf(
+                listOf(
+                    VoucherPackage("Voucher 1 Jam", "60 Menit", "Rp 1.000", "Cocok untuk pemakaian cepat & darurat"),
+                    VoucherPackage("Voucher 1 Hari", "24 Jam", "Rp 5.000", "Akses penuh seharian tanpa batas"),
+                    VoucherPackage("Voucher 1 Minggu", "7 Hari", "Rp 15.000", "Lebih hemat untuk kebutuhan mingguan"),
+                    VoucherPackage("Voucher 1 Bulan", "30 Hari", "Rp 75.000", "Paket paling hemat untuk pemakaian rutin")
+                )
+            )
+        }
+
+        LaunchedEffect(Unit) {
+            withContext(Dispatchers.IO) {
+                val storeData = fetchStoreConfig()
+                if (storeData != null) {
+                    adminWa = storeData.first
+                    if (storeData.second.isNotEmpty()) {
+                        packageList = storeData.second
+                    }
+                }
+            }
+        }
+        
         val currentStatusText = when {
             isLoading -> statusMessage
             isRunning -> "Status: Terhubung (LailaNet Aktif)"
@@ -101,15 +140,15 @@ class MainActivity : HelperBaseComponentActivity() {
                 painter = painterResource(id = R.mipmap.ic_launcher),
                 contentDescription = "Logo LailaNet",
                 modifier = Modifier
-                    .size(96.dp)
+                    .size(90.dp)
                     .clip(RoundedCornerShape(22.dp))
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "LailaNet",
-                fontSize = 28.sp,
+                fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B)
             )
@@ -122,7 +161,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 color = Color(0xFF64748B)
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             OutlinedTextField(
                 value = voucherCode,
@@ -145,7 +184,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Button(
                 onClick = {
@@ -174,7 +213,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
+                    .height(58.dp)
             ) {
                 Text(
                     text = when {
@@ -188,7 +227,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = currentStatusText,
@@ -199,7 +238,7 @@ class MainActivity : HelperBaseComponentActivity() {
             )
 
             if (isRunning && expiredDate.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -216,6 +255,175 @@ class MainActivity : HelperBaseComponentActivity() {
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { showPriceDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF2563EB)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = "Beli Voucher",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF2563EB)
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val pesan = "Halo Admin LailaNet, saya butuh bantuan terkait kendala aplikasi / kode voucher saya."
+                        openWhatsApp(adminWa, pesan)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF16A34A)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = "Hubungi Admin",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF16A34A)
+                    )
+                }
+            }
+        }
+
+                if (showPriceDialog) {
+            AlertDialog(
+                onDismissRequest = { showPriceDialog = false },
+                title = {
+                    Text(
+                        text = "Pilih Paket Voucher",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Ketuk paket di bawah ini untuk memesan langsung via WhatsApp Admin:",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                        packageList.forEach { pkg ->
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showPriceDialog = false
+                                        val pesan = "Halo Admin LailaNet, saya ingin membeli:\n" +
+                                            "• Paket: ${pkg.nama} (${pkg.durasi})\n" +
+                                            "• Harga: ${pkg.harga}\n\n" +
+                                            "Mohon info pembayarannya. Terima kasih."
+                                        openWhatsApp(adminWa, pesan)
+                                    }
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${pkg.nama} (${pkg.durasi})",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF1E293B)
+                                        )
+                                        Text(
+                                            text = pkg.harga,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF2563EB)
+                                        )
+                                    }
+                                    if (pkg.ket.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = pkg.ket,
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showPriceDialog = false }) {
+                        Text("Tutup")
+                    }
+                }
+            )
+        }
+    }
+
+      private fun openWhatsApp(phone: String, message: String) {
+        try {
+            val encodedMsg = URLEncoder.encode(message, "UTF-8")
+            val waDomain = "api.whatsapp.com"
+            val waUrl = "https://$waDomain/send?phone=$phone&text=$encodedMsg"
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(waUrl))
+            startActivity(intent)
+        } catch (e: Exception) {
+            toast("Aplikasi WhatsApp tidak ditemukan di HP ini")
+        }
+    }
+
+    private fun fetchStoreConfig(): Pair<String, List<VoucherPackage>>? {
+        return try {
+            val host = "lailanet-voucher.hendrytdr96"
+            val url = "https://$host.workers.dev/paket"
+            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 6000
+                readTimeout = 6000
+            }
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(text)
+                val wa = json.optString("wa", "6281234567890")
+                val arr = json.optJSONArray("packages")
+                val list = mutableListOf<VoucherPackage>()
+                if (arr != null) {
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        list.add(
+                            VoucherPackage(
+                                nama = obj.optString("nama"),
+                                durasi = obj.optString("durasi"),
+                                harga = obj.optString("harga"),
+                                ket = obj.optString("ket")
+                            )
+                        )
+                    }
+                }
+                Pair(wa, list)
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -255,7 +463,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-        private fun fetchVoucherData(voucher: String): Pair<String?, String?> {
+    private fun fetchVoucherData(voucher: String): Pair<String?, String?> {
         val lower = voucher.lowercase()
         if (lower.startsWith("vmess://") ||
             lower.startsWith("vless://") ||
