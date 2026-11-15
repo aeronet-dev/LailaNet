@@ -295,6 +295,25 @@ class MainActivity : HelperBaseComponentActivity() {
             ) {
                 Text("Hubungi Admin", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFEFF6FF), RoundedCornerShape(12.dp))
+                    .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(12.dp))
+                    .padding(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Info: Pastikan HP terhubung ke Wi-Fi atau kartu seluler dengan kuota aktif / paket khusus agar voucher dapat terhubung.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF1E40AF),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 17.sp
+                )
+            }
         }
 
         if (showPriceDialog) {
