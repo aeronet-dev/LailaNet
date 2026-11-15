@@ -1,6 +1,9 @@
 package com.v2ray.ang.ui.main
 
 import android.annotation.SuppressLint
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.net.VpnService
@@ -131,6 +134,15 @@ class MainActivity : HelperBaseComponentActivity() {
         }
 
         LaunchedEffect(Unit) {
+            // Cek otomatis jika aplikasi dibuka setelah batas waktu lewat
+            val endMs = MmkvManager.decodeSettingsLong("LAST_VOUCHER_END_MS", 0L)
+            if (endMs > 0L && System.currentTimeMillis() >= endMs && isRunning) {
+                MmkvManager.encodeSettings("LAST_VOUCHER_EXP", "")
+                MmkvManager.encodeSettings("LAST_VOUCHER_END_MS", 0L)
+                LauncherManager.stopService(this@MainActivity)
+                toast("Masa aktif voucher telah habis")
+            }
+
             withContext(Dispatchers.IO) {
                 val cfg = fetchStoreConfig()
                 if (cfg != null) {
@@ -167,7 +179,7 @@ class MainActivity : HelperBaseComponentActivity() {
             Text("LailaNet", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
             Text("Masukkan kode voucher untuk terhubung", fontSize = 14.sp, color = Color(0xFF64748B))
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             OutlinedTextField(
                 value = voucherCode,
@@ -190,11 +202,14 @@ class MainActivity : HelperBaseComponentActivity() {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Button(
                 onClick = {
                     if (isRunning) {
+                        val input = voucherCode.trim()
+                        cancelExpireAlarm()
+                        pauseVoucherSession(input)
                         statusMessage = ""
                         LauncherManager.stopService(this@MainActivity)
                     } else {
@@ -239,8 +254,8 @@ class MainActivity : HelperBaseComponentActivity() {
                 textAlign = TextAlign.Center
             )
 
-            if (isRunning && expiredDate.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
+                        if (isRunning && expiredDate.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -250,14 +265,16 @@ class MainActivity : HelperBaseComponentActivity() {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Aktif s/d: $expiredDate",
-                        fontSize = 13.sp,
+                        text = expiredDate,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF166534)
+                        color = Color(0xFF166534),
+                        textAlign = TextAlign.Center
                     )
                 }
             }
-                        Spacer(modifier = Modifier.height(20.dp))
+
+            Spacer(modifier = Modifier.height(18.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -296,7 +313,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 Text("Hubungi Admin", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Box(
                 modifier = Modifier
@@ -408,6 +425,50 @@ class MainActivity : HelperBaseComponentActivity() {
             )
         }
     }
+    
+    private fun scheduleExpireAlarm(remainingMs: Long) {
+        if (remainingMs <= 0L) return
+        val alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val expIntent = Intent(this, VoucherExpireReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            1001,
+            expIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val triggerAt = System.currentTimeMillis() + remainingMs
+        alarmMgr.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+    }
+
+    private fun cancelExpireAlarm() {
+        val alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val expIntent = Intent(this, VoucherExpireReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this,
+            1001,
+            expIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmMgr.cancel(pendingIntent)
+    }
+
+    private fun pauseVoucherSession(voucher: String) {
+        if (voucher.isEmpty() || voucher.contains("://")) return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val devId = URLEncoder.encode(fetchHardwareId(), "UTF-8")
+                val encCode = URLEncoder.encode(voucher, "UTF-8")
+                val pauseUrl = "$workerBaseUrl/api/voucher/pause?code=$encCode&device_id=$devId"
+                (URL(pauseUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                }.inputStream.close()
+            } catch (_: Exception) { }
+        }
+    }
+
     private fun openWhatsApp(phone: String, message: String) {
         try {
             var cleanPhone = phone.replace(Regex("[^0-9]"), "")
@@ -480,11 +541,12 @@ class MainActivity : HelperBaseComponentActivity() {
                     return@withContext
                 }
                 val v2rayConfig = result.first!!
-                val expired = result.second ?: "Aktif"
+                val infoText = result.second ?: "Aktif"
                 val remainingMs = result.third
 
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
-                MmkvManager.encodeSettings("LAST_VOUCHER_EXP", expired)
+                MmkvManager.encodeSettings("LAST_VOUCHER_EXP", infoText)
+                MmkvManager.encodeSettings("LAST_VOUCHER_END_MS", System.currentTimeMillis() + remainingMs)
                 MmkvManager.removeAllServer()
                 mainViewModel.onAction(MainAction.ImportBatchConfig(v2rayConfig))
 
@@ -494,15 +556,16 @@ class MainActivity : HelperBaseComponentActivity() {
                     val targetGuid = serverList.first()
                     MmkvManager.setSelectServer(targetGuid)
                     mainViewModel.updateSelectedGuid(targetGuid)
-                    onState(false, "", expired)
+                    onState(false, "", infoText)
                     requestServiceStart()
 
                     if (remainingMs > 0) {
+                        scheduleExpireAlarm(remainingMs)
                         lifecycleScope.launch {
                             delay(remainingMs)
                             if (mainViewModel.uiState.value.isRunning) {
                                 LauncherManager.stopService(this@MainActivity)
-                                toast("Masa aktif voucher telah habis")
+                                toast("Waktu voucher LailaNet telah habis")
                             }
                         }
                     }
@@ -543,12 +606,20 @@ class MainActivity : HelperBaseComponentActivity() {
                 if (link.isEmpty()) {
                     return Triple(null, "Link VLESS belum diisi admin pada voucher ini", 0L)
                 }
+                val isUnlimited = json.optBoolean("is_unlimited", false)
                 val expMs = json.optLong("expired_at", 0L)
+                val validUntilMs = json.optLong("valid_until", expMs)
                 val remMs = json.optLong("remaining_ms", 0L)
-                val expText = if (expMs > 0) {
-                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(expMs))
-                } else "Aktif"
-                Triple(link, expText, remMs)
+                val remUptimeMs = json.optLong("remaining_uptime_ms", 0L)
+
+                val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+                val infoText = if (isUnlimited) {
+                    "Unlimited Waktu | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
+                } else {
+                    val sisaMenit = Math.ceil(remUptimeMs / 60000.0).toInt()
+                    "Sisa Kuota: ${sisaMenit} Menit | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
+                }
+                Triple(link, infoText, remMs)
             } else {
                 Triple(null, json.optString("message", "Kode voucher tidak valid"), 0L)
             }
@@ -579,9 +650,3 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
-            moveTaskToBack(false)
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-}
