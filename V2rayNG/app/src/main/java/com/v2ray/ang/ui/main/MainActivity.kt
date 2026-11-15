@@ -159,25 +159,13 @@ class MainActivity : HelperBaseComponentActivity() {
             Image(
                 painter = painterResource(id = R.mipmap.ic_launcher),
                 contentDescription = "Logo LailaNet",
-                modifier = Modifier
-                    .size(84.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                modifier = Modifier.size(84.dp).clip(RoundedCornerShape(20.dp))
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = "LailaNet",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B)
-            )
-
-            Text(
-                text = "Masukkan kode voucher untuk terhubung",
-                fontSize = 14.sp,
-                color = Color(0xFF64748B)
-            )
+            Text("LailaNet", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+            Text("Masukkan kode voucher untuk terhubung", fontSize = 14.sp, color = Color(0xFF64748B))
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -227,9 +215,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isRunning) Color(0xFFDC2626) else Color(0xFF2563EB)
                 ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
+                modifier = Modifier.fillMaxWidth().height(56.dp)
             ) {
                 Text(
                     text = when {
@@ -271,8 +257,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -284,12 +269,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     border = BorderStroke(1.dp, Color(0xFF2563EB)),
                     modifier = Modifier.weight(1f).height(46.dp)
                 ) {
-                    Text(
-                        text = "Beli Voucher",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF2563EB)
-                    )
+                    Text("Beli Voucher", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2563EB))
                 }
 
                 OutlinedButton(
@@ -298,12 +278,7 @@ class MainActivity : HelperBaseComponentActivity() {
                     border = BorderStroke(1.dp, Color(0xFF7C3AED)),
                     modifier = Modifier.weight(1f).height(46.dp)
                 ) {
-                    Text(
-                        text = "Beli Paket Data",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF7C3AED)
-                    )
+                    Text("Beli Paket Data", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF7C3AED))
                 }
             }
 
@@ -318,12 +293,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 border = BorderStroke(1.dp, Color(0xFF16A34A)),
                 modifier = Modifier.fillMaxWidth().height(44.dp)
             ) {
-                Text(
-                    text = "Hubungi Admin",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF16A34A)
-                )
+                Text("Hubungi Admin", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
             }
         }
 
@@ -336,11 +306,7 @@ class MainActivity : HelperBaseComponentActivity() {
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Ketuk paket di bawah untuk memesan via WhatsApp Admin:",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
+                        Text("Ketuk paket di bawah untuk memesan via WhatsApp Admin:", fontSize = 12.sp, color = Color(0xFF64748B))
                         packageList.forEach { pkg ->
                             Card(
                                 shape = RoundedCornerShape(12.dp),
@@ -348,10 +314,7 @@ class MainActivity : HelperBaseComponentActivity() {
                                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                                 modifier = Modifier.fillMaxWidth().clickable {
                                     showPriceDialog = false
-                                    val pesan = "Halo Admin LailaNet, saya ingin membeli:\n" +
-                                        "• Paket: ${pkg.nama}\n" +
-                                        "• Harga: ${pkg.harga}\n\n" +
-                                        "Mohon info pembayarannya. Terima kasih."
+                                    val pesan = "Halo Admin LailaNet, saya ingin membeli:\n• Paket: ${pkg.nama}\n• Harga: ${pkg.harga}\n\nMohon info pembayarannya. Terima kasih."
                                     openWhatsApp(adminWa, pesan)
                                 }
                             ) {
@@ -367,11 +330,10 @@ class MainActivity : HelperBaseComponentActivity() {
                         }
                     }
                 },
-                confirmButton = {
-                    TextButton(onClick = { showPriceDialog = false }) { Text("Tutup") }
-                }
+                confirmButton = { TextButton(onClick = { showPriceDialog = false }) { Text("Tutup") } }
             )
         }
+
         if (showDataDialog) {
             AlertDialog(
                 onDismissRequest = { showDataDialog = false },
@@ -391,11 +353,7 @@ class MainActivity : HelperBaseComponentActivity() {
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Text(
-                            text = "Isi nomor HP di atas, lalu ketuk paket untuk order via WhatsApp:",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
+                        Text("Isi nomor HP di atas, lalu ketuk paket untuk order via WhatsApp:", fontSize = 12.sp, color = Color(0xFF64748B))
                         dataPackageList.forEach { dp ->
                             Card(
                                 shape = RoundedCornerShape(12.dp),
@@ -408,12 +366,7 @@ class MainActivity : HelperBaseComponentActivity() {
                                         return@clickable
                                     }
                                     showDataDialog = false
-                                    val pesan = "Halo Admin LailaNet, saya mau beli Paket Data:\n" +
-                                        "• Operator: ${dp.operator}\n" +
-                                        "• Paket: ${dp.nama}\n" +
-                                        "• Harga: ${dp.harga}\n" +
-                                        "• Nomor Tujuan: $phone\n\n" +
-                                        "Mohon segera diproses. Terima kasih."
+                                    val pesan = "Halo Admin LailaNet, saya mau beli Paket Data:\n• Operator: ${dp.operator}\n• Paket: ${dp.nama}\n• Harga: ${dp.harga}\n• Nomor Tujuan: $phone\n\nMohon segera diproses. Terima kasih."
                                     openWhatsApp(adminWa, pesan)
                                 }
                             ) {
@@ -432,16 +385,18 @@ class MainActivity : HelperBaseComponentActivity() {
                         }
                     }
                 },
-                confirmButton = {
-                    TextButton(onClick = { showDataDialog = false }) { Text("Tutup") }
-                }
+                confirmButton = { TextButton(onClick = { showDataDialog = false }) { Text("Tutup") } }
             )
         }
     }
     private fun openWhatsApp(phone: String, message: String) {
         try {
+            var cleanPhone = phone.replace(Regex("[^0-9]"), "")
+            if (cleanPhone.startsWith("0")) {
+                cleanPhone = "62" + cleanPhone.substring(1)
+            }
             val encodedMsg = URLEncoder.encode(message, "UTF-8")
-            val waUrl = "https://whatsapp.com"
+            val waUrl = "https://wa.me"
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(waUrl)))
         } catch (e: Exception) {
             toast("Aplikasi WhatsApp tidak ditemukan di HP ini")
@@ -452,8 +407,9 @@ class MainActivity : HelperBaseComponentActivity() {
         return try {
             val connection = (URL("$workerBaseUrl/api/config").openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 6000
-                readTimeout = 6000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                connectTimeout = 8000
+                readTimeout = 8000
             }
             if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                 val text = connection.inputStream.bufferedReader().use { it.readText() }
@@ -547,20 +503,16 @@ class MainActivity : HelperBaseComponentActivity() {
         }
 
         return try {
-            val devId = fetchHardwareId()
-            val payload = JSONObject().apply {
-                put("code", voucher)
-                put("device_id", devId)
-            }.toString()
+            val devId = URLEncoder.encode(fetchHardwareId(), "UTF-8")
+            val encCode = URLEncoder.encode(voucher, "UTF-8")
+            val apiUrl = "$workerBaseUrl/api/voucher/verify?code=$encCode&device_id=$devId"
 
-            val connection = (URL("$workerBaseUrl/api/voucher/verify").openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
-                doOutput = true
+            val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0")
                 connectTimeout = 8000
                 readTimeout = 8000
             }
-            connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
 
             val code = connection.responseCode
             val stream = if (code == HttpURLConnection.HTTP_OK) connection.inputStream else connection.errorStream
@@ -582,7 +534,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 Triple(null, json.optString("message", "Kode voucher tidak valid"), 0L)
             }
         } catch (e: Exception) {
-            Triple(null, "Gagal terhubung ke server voucher", 0L)
+            Triple(null, "Error: ${e.javaClass.simpleName} - ${e.message}", 0L)
         }
     }
 
