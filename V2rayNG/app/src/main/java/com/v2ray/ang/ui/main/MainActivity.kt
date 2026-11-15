@@ -68,7 +68,7 @@ data class DataPackage(
 
 class MainActivity : HelperBaseComponentActivity() {
 
-    private val workerBaseUrl = "https://workers.dev"
+    private val workerBaseUrl = "https://lailanet.my.id"
 
     private val mainViewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
