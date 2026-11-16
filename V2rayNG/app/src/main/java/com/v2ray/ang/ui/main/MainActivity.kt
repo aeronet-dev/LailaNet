@@ -469,17 +469,23 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-    private fun openWhatsApp(phone: String, message: String) {
+        private fun openWhatsApp(phone: String, message: String) {
+        var cleanPhone = phone.replace(Regex("[^0-9]"), "")
+        if (cleanPhone.startsWith("0")) {
+            cleanPhone = "62" + cleanPhone.substring(1)
+        }
+        val encodedMsg = URLEncoder.encode(message, "UTF-8")
+
         try {
-            var cleanPhone = phone.replace(Regex("[^0-9]"), "")
-            if (cleanPhone.startsWith("0")) {
-                cleanPhone = "62" + cleanPhone.substring(1)
+            val directUri = Uri.parse("whatsapp://send?phone=$cleanPhone&text=$encodedMsg")
+            startActivity(Intent(Intent.ACTION_VIEW, directUri))
+        } catch (_: Exception) {
+            try {
+                val webUri = Uri.parse("https://whatsapp.com")
+                startActivity(Intent(Intent.ACTION_VIEW, webUri))
+            } catch (_: Exception) {
+                toast("Aplikasi WhatsApp tidak ditemukan di HP ini")
             }
-            val encodedMsg = URLEncoder.encode(message, "UTF-8")
-            val waUrl = "https://wa.me"
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(waUrl)))
-        } catch (e: Exception) {
-            toast("Aplikasi WhatsApp tidak ditemukan di HP ini")
         }
     }
 
