@@ -91,8 +91,8 @@ object NotificationManager {
                 ""
             }
 
-        mBuilder = NotificationCompat.Builder(service, channelId)
-            .setSmallIcon(R.drawable.ic_stat_lailanet)
+            mBuilder = NotificationCompat.Builder(service, channelId)
+            .setSmallIcon(R.drawable.ic_lailanet_wifi)
             .setContentTitle(currentConfig?.remarks ?: service.getString(R.string.app_name))
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
