@@ -71,7 +71,7 @@ data class DataPackage(
 
 class MainActivity : HelperBaseComponentActivity() {
 
-    private val workerBaseUrl = "https://api.lailanet.my.id"
+    private val workerBaseUrl = "https://lailanet.my.id"
 
     private val mainViewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
@@ -111,15 +111,16 @@ class MainActivity : HelperBaseComponentActivity() {
 
         var showPriceDialog by remember { mutableStateOf(false) }
         var showDataDialog by remember { mutableStateOf(false) }
+        var showGuideDialog by remember { mutableStateOf(false) }
         var targetPhone by remember { mutableStateOf("") }
         var adminWa by remember { mutableStateOf("6285890014896") }
 
         var packageList by remember {
             mutableStateOf(
                 listOf(
-                    VoucherPackage("Voucher 1 Hari Unlimited", "Rp 5.000"),
-                    VoucherPackage("Voucher 7 Hari Unlimited", "Rp 15.000"),
-                    VoucherPackage("Voucher 30 Hari Unlimited", "Rp 50.000")
+                    VoucherPackage("Voucher Hemat 1 Hari (Stabil & Irit Kuota)", "Rp 2.000"),
+                    VoucherPackage("Voucher Stabil 7 Hari (Gaming & Sosmed)", "Rp 5.000"),
+                    VoucherPackage("Voucher Puas 30 Hari (Prioritas Jakarta)", "Rp 15.000")
                 )
             )
         }
@@ -127,14 +128,15 @@ class MainActivity : HelperBaseComponentActivity() {
         var dataPackageList by remember {
             mutableStateOf(
                 listOf(
-                    DataPackage("Telkomsel", "Kuota 5GB 30 Hari", "Rp 20.000"),
-                    DataPackage("XL / Axis", "Kuota 10GB 30 Hari", "Rp 28.000")
+                    DataPackage("by.U / Telkomsel", "Kuota 10GB 7 Hari + Gratis Voucher VPN", "Rp 23.000"),
+                    DataPackage("by.U / Telkomsel", "Kuota 15GB 30 Hari + Gratis Voucher VPN", "Rp 60.000"),
+                    DataPackage("by.U / Telkomsel", "Kuota 30GB 30 Hari + Gratis Voucher VPN", "Rp 85.000"),
+                    DataPackage("Indosat", "Data Pure 6GB 30 Hari + Gratis Voucher VPN", "Rp 45.000")
                 )
             )
         }
 
         LaunchedEffect(Unit) {
-            // Cek otomatis jika aplikasi dibuka setelah batas waktu lewat
             val endMs = MmkvManager.decodeSettingsLong("LAST_VOUCHER_END_MS", 0L)
             if (endMs > 0L && System.currentTimeMillis() >= endMs && isRunning) {
                 MmkvManager.encodeSettings("LAST_VOUCHER_EXP", "")
@@ -155,7 +157,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
         val currentStatusText = when {
             isLoading -> statusMessage
-            isRunning -> "Status: Terhubung (LailaNet Aktif)"
+            isRunning -> "Status: Terhubung (Pengaman & Penghemat Aktif)"
             statusMessage.isNotEmpty() -> statusMessage
             else -> "Status: Terputus"
         }
@@ -164,6 +166,7 @@ class MainActivity : HelperBaseComponentActivity() {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFFF5F7FA))
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
@@ -171,22 +174,34 @@ class MainActivity : HelperBaseComponentActivity() {
             Image(
                 painter = painterResource(id = R.mipmap.ic_launcher),
                 contentDescription = "Logo LailaNet",
-                modifier = Modifier.size(84.dp).clip(RoundedCornerShape(20.dp))
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(20.dp))
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Text("LailaNet", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
-            Text("Masukkan kode voucher untuk terhubung", fontSize = 14.sp, color = Color(0xFF64748B))
+            Text(
+                text = "LailaNet",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B)
+            )
+            Text(
+                text = "Penstabil Koneksi, Penghemat Kuota & Toko Data",
+                fontSize = 13.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center
+            )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             OutlinedTextField(
                 value = voucherCode,
                 onValueChange = { voucherCode = it },
                 enabled = !isRunning && !isLoading,
                 singleLine = true,
-                label = { Text("Kode Voucher") },
+                label = { Text("Kode Voucher LailaNet") },
                 placeholder = { Text("Contoh: LAILA01") },
                 shape = RoundedCornerShape(14.dp),
                 textStyle = LocalTextStyle.current.copy(
@@ -230,12 +245,14 @@ class MainActivity : HelperBaseComponentActivity() {
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isRunning) Color(0xFFDC2626) else Color(0xFF2563EB)
                 ),
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
             ) {
                 Text(
                     text = when {
                         isLoading -> "MEMPROSES..."
-                        isRunning -> "PUTUSKAN"
+                        isRunning -> "PUTUSKAN KONEKSI"
                         else -> "HUBUNGKAN"
                     },
                     fontSize = 16.sp,
@@ -254,7 +271,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 textAlign = TextAlign.Center
             )
 
-                        if (isRunning && expiredDate.isNotEmpty()) {
+            if (isRunning && expiredDate.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
@@ -284,33 +301,76 @@ class MainActivity : HelperBaseComponentActivity() {
                     onClick = { showPriceDialog = true },
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Color(0xFF2563EB)),
-                    modifier = Modifier.weight(1f).height(46.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
                 ) {
-                    Text("Beli Voucher", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF2563EB))
+                    Text(
+                        text = "Beli Voucher",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF2563EB)
+                    )
                 }
 
                 OutlinedButton(
                     onClick = { showDataDialog = true },
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Color(0xFF7C3AED)),
-                    modifier = Modifier.weight(1f).height(46.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
                 ) {
-                    Text("Beli Paket Data", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF7C3AED))
+                    Text(
+                        text = "Beli Paket Data",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF7C3AED)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            OutlinedButton(
-                onClick = {
-                    val pesan = "Halo Admin LailaNet, saya butuh bantuan terkait aplikasi / voucher."
-                    openWhatsApp(adminWa, pesan)
-                },
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFF16A34A)),
-                modifier = Modifier.fillMaxWidth().height(44.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Hubungi Admin", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
+                OutlinedButton(
+                    onClick = { showGuideDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF0284C7)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                ) {
+                    Text(
+                        text = "Panduan Pakai",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF0284C7)
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val devId = fetchHardwareId()
+                        val pesan = "Halo Admin LailaNet, saya butuh bantuan terkait layanan / voucher.\n• ID Perangkat: $devId"
+                        openWhatsApp(adminWa, pesan)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color(0xFF16A34A)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                ) {
+                    Text(
+                        text = "Hubungi Admin",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF16A34A)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
@@ -324,7 +384,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Info: Pastikan HP terhubung ke Wi-Fi atau kartu seluler dengan kuota aktif / paket khusus agar voucher dapat terhubung.",
+                    text = "Penting: LailaNet adalah layanan VPN pengaman & penstabil koneksi resmi (bukan internet gratis tanpa kuota). Pastikan kartu seluler Anda memiliki kuota aktif atau terhubung ke Wi-Fi agar dapat digunakan.",
                     fontSize = 12.sp,
                     color = Color(0xFF1E40AF),
                     textAlign = TextAlign.Center,
@@ -332,51 +392,136 @@ class MainActivity : HelperBaseComponentActivity() {
                 )
             }
         }
+        if (showGuideDialog) {
+            AlertDialog(
+                onDismissRequest = { showGuideDialog = false },
+                title = {
+                    Text(
+                        text = "Panduan Penggunaan LailaNet",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "1. Wajib Memiliki Kuota Aktif:\nLailaNet bekerja di atas jaringan internet kartu seluler (Telkomsel/by.U, Indosat, XL, Tri, Smartfren) atau Wi-Fi aktif Anda.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = "2. Fungsi Penghemat Kuota & Stabilizer:\nLailaNet menjaga kecepatan internet tetap stabil dan mencegah aplikasi video menyedot kuota berlebihan secara mendadak, sehingga paket mingguan/bulanan lebih awet.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = "3. Beli Paket Data = Gratis Voucher:\nJika kuota utama habis, pesan paket data resmi di menu \"Beli Paket Data\" (harga normal konter) dan dapatkan kode voucher LailaNet gratis sesuai masa aktif paket.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 18.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showGuideDialog = false }) {
+                        Text("Mengerti")
+                    }
+                }
+            )
+        }
 
         if (showPriceDialog) {
             AlertDialog(
                 onDismissRequest = { showPriceDialog = false },
-                title = { Text("Pilih Paket Voucher", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = {
+                    Text(
+                        text = "Pilih Voucher LailaNet",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
                 text = {
                     Column(
-                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text("Ketuk paket di bawah untuk memesan via WhatsApp Admin:", fontSize = 12.sp, color = Color(0xFF64748B))
+                        Text(
+                            text = "Khusus bagi Anda yang sudah memiliki kuota operator / Wi-Fi sendiri. Ketuk paket untuk memesan via WhatsApp Admin:",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
                         packageList.forEach { pkg ->
                             Card(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    showPriceDialog = false
-                                    val pesan = "Halo Admin LailaNet, saya ingin membeli:\n• Paket: ${pkg.nama}\n• Harga: ${pkg.harga}\n\nMohon info pembayarannya. Terima kasih."
-                                    openWhatsApp(adminWa, pesan)
-                                }
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showPriceDialog = false
+                                        val devId = fetchHardwareId()
+                                        val pesan = "Halo Admin LailaNet, saya ingin membeli Voucher:\n• Paket: ${pkg.nama}\n• Harga: ${pkg.harga}\n• ID Perangkat: $devId\n\nMohon info pembayarannya. Terima kasih."
+                                        openWhatsApp(adminWa, pesan)
+                                    }
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(pkg.nama, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B))
-                                    Text(pkg.harga, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF2563EB))
+                                    Text(
+                                        text = pkg.nama,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF1E293B),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = pkg.harga,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF2563EB)
+                                    )
                                 }
                             }
                         }
                     }
                 },
-                confirmButton = { TextButton(onClick = { showPriceDialog = false }) { Text("Tutup") } }
+                confirmButton = {
+                    TextButton(onClick = { showPriceDialog = false }) {
+                        Text("Tutup")
+                    }
+                }
             )
         }
 
         if (showDataDialog) {
             AlertDialog(
                 onDismissRequest = { showDataDialog = false },
-                title = { Text("Toko Paket Data", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = {
+                    Text(
+                        text = "Toko Paket Data Resmi",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
                 text = {
                     Column(
-                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         OutlinedTextField(
@@ -384,48 +529,77 @@ class MainActivity : HelperBaseComponentActivity() {
                             onValueChange = { targetPhone = it },
                             singleLine = true,
                             label = { Text("Nomor HP Tujuan") },
-                            placeholder = { Text("Contoh: 081234567890") },
+                            placeholder = { Text("Contoh: 085156xxxxxx") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Text("Isi nomor HP di atas, lalu ketuk paket untuk order via WhatsApp:", fontSize = 12.sp, color = Color(0xFF64748B))
+                        Text(
+                            text = "Isi nomor HP tujuan, lalu ketuk paket di bawah (Setiap pembelian kuota di sini GRATIS Voucher LailaNet):",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
                         dataPackageList.forEach { dp ->
                             Card(
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                                 border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    val phone = targetPhone.trim()
-                                    if (phone.length < 9) {
-                                        toast("Masukkan nomor HP tujuan yang valid terlebih dahulu")
-                                        return@clickable
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val phone = targetPhone.trim()
+                                        if (phone.length < 9) {
+                                            toast("Masukkan nomor HP tujuan yang valid terlebih dahulu")
+                                            return@clickable
+                                        }
+                                        showDataDialog = false
+                                        val devId = fetchHardwareId()
+                                        val pesan = "Halo Admin LailaNet, saya mau beli Paket Data:\n• Operator: ${dp.operator}\n• Paket: ${dp.nama}\n• Harga: ${dp.harga}\n• Nomor Tujuan: $phone\n• ID Perangkat: $devId\n\nMohon diproses beserta bonus voucher LailaNet-nya. Terima kasih."
+                                        openWhatsApp(adminWa, pesan)
                                     }
-                                    showDataDialog = false
-                                    val pesan = "Halo Admin LailaNet, saya mau beli Paket Data:\n• Operator: ${dp.operator}\n• Paket: ${dp.nama}\n• Harga: ${dp.harga}\n• Nomor Tujuan: $phone\n\nMohon segera diproses. Terima kasih."
-                                    openWhatsApp(adminWa, pesan)
-                                }
                             ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(dp.operator, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF7C3AED))
-                                        Text(dp.nama, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B))
+                                        Text(
+                                            text = dp.operator,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF7C3AED)
+                                        )
+                                        Text(
+                                            text = dp.nama,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF1E293B)
+                                        )
                                     }
-                                    Text(dp.harga, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF2563EB))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = dp.harga,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF2563EB)
+                                    )
                                 }
                             }
                         }
                     }
                 },
-                confirmButton = { TextButton(onClick = { showDataDialog = false }) { Text("Tutup") } }
+                confirmButton = {
+                    TextButton(onClick = { showDataDialog = false }) {
+                        Text("Tutup")
+                    }
+                }
             )
         }
     }
-    
+
     private fun scheduleExpireAlarm(remainingMs: Long) {
         if (remainingMs <= 0L) return
         val alarmMgr = getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -469,7 +643,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-        private fun openWhatsApp(phone: String, message: String) {
+    private fun openWhatsApp(phone: String, message: String) {
         var cleanPhone = phone.replace(Regex("[^0-9]"), "")
         if (cleanPhone.startsWith("0")) {
             cleanPhone = "62" + cleanPhone.substring(1)
@@ -610,7 +784,7 @@ class MainActivity : HelperBaseComponentActivity() {
             if (code == HttpURLConnection.HTTP_OK && json.optString("status") == "ok") {
                 val link = json.optString("vless_link", "")
                 if (link.isEmpty()) {
-                    return Triple(null, "Link VLESS belum diisi admin pada voucher ini", 0L)
+                    return Triple(null, "Link server belum diisi admin pada voucher ini", 0L)
                 }
                 val isUnlimited = json.optBoolean("is_unlimited", false)
                 val expMs = json.optLong("expired_at", 0L)
@@ -620,10 +794,10 @@ class MainActivity : HelperBaseComponentActivity() {
 
                 val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
                 val infoText = if (isUnlimited) {
-                    "Unlimited Waktu | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
+                    "Aktif | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
                 } else {
                     val sisaMenit = Math.ceil(remUptimeMs / 60000.0).toInt()
-                    "Sisa Kuota: ${sisaMenit} Menit | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
+                    "Sisa Waktu: ${sisaMenit} Menit | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
                 }
                 Triple(link, infoText, remMs)
             } else {
@@ -654,7 +828,7 @@ class MainActivity : HelperBaseComponentActivity() {
         LauncherManager.startService(this)
     }
 
-        override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
             moveTaskToBack(false)
             return true
