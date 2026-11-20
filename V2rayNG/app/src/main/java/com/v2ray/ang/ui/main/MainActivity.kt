@@ -187,7 +187,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 color = Color(0xFF1E293B)
             )
             Text(
-                text = "Penstabil Koneksi, Penghemat Kuota & Toko Data",
+                text = "VPN Penghemat Kuota & Pengaman Wi-Fi",
                 fontSize = 13.sp,
                 color = Color(0xFF64748B),
                 textAlign = TextAlign.Center
@@ -200,8 +200,8 @@ class MainActivity : HelperBaseComponentActivity() {
                 onValueChange = { voucherCode = it },
                 enabled = !isRunning && !isLoading,
                 singleLine = true,
-                label = { Text("Kode Voucher LailaNet") },
-                placeholder = { Text("Contoh: LAILA01") },
+                label = { Text("Masukan Kode Voucher LailaNet") },
+                placeholder = { Text("Ketik Kode Voucher Di sini") },
                 shape = RoundedCornerShape(14.dp),
                 textStyle = LocalTextStyle.current.copy(
                     textAlign = TextAlign.Center,
@@ -383,7 +383,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Penting: LailaNet adalah layanan VPN pengaman & penstabil koneksi resmi (bukan internet gratis tanpa kuota). Pastikan kartu seluler Anda memiliki kuota aktif atau terhubung ke Wi-Fi agar dapat digunakan.",
+                    text = "Penting: LailaNet adalah layanan VPN pengaman & penghemat kuota resmi (bukan internet gratis). Pastikan kartu Anda memiliki kuota aktif atau terhubung ke Wi-Fi.",
                     fontSize = 12.sp,
                     color = Color(0xFF1E40AF),
                     textAlign = TextAlign.Center,
@@ -720,8 +720,17 @@ class MainActivity : HelperBaseComponentActivity() {
                     return@withContext
                 }
                 val v2rayConfig = result.first!!
-                val infoText = result.second ?: "Aktif"
-                val remainingMs = result.third
+val rawInfo = result.second ?: "Aktif"
+val paketLabel = when {
+    v2rayConfig.contains(":443") -> "Paket Hemat • 350 Kbps"
+    v2rayConfig.contains(":8443") -> "Paket Reguler • 650 Kbps"
+    v2rayConfig.contains(":2053") -> "Paket Turbo • 900 Kbps"
+    v2rayConfig.contains(":2083") -> "Paket VIP • 1300 Kbps"
+    v2rayConfig.contains(":2087") -> "Paket Sultan • 1800 Kbps"
+    else -> "Paket Standar"
+}
+val infoText = "$paketLabel | $rawInfo"
+val remainingMs = result.third
 
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
                 MmkvManager.encodeSettings("LAST_VOUCHER_EXP", infoText)
