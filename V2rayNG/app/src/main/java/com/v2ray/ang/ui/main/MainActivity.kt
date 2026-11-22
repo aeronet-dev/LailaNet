@@ -608,7 +608,8 @@ class MainActivity : HelperBaseComponentActivity() {
                                 CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text("Membuat tagihan QRIS Duitku...", fontSize = 13.sp)
-                                                   } else if (isLoadingProducts) {
+                            }
+                              } else if (isLoadingProducts) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
