@@ -19,6 +19,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +55,7 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -63,15 +65,24 @@ data class VoucherPackage(
     val harga: String
 )
 
-data class DataPackage(
-    val operator: String,
+data class DigiflazzProduct(
+    val sku: String,
     val nama: String,
-    val harga: String
+    val brand: String,
+    val kategori: String,
+    val harga: Int,
+    val ket: String
+)
+
+data class QrisOrderResult(
+    val orderId: String,
+    val qrString: String,
+    val paymentUrl: String
 )
 
 class MainActivity : HelperBaseComponentActivity() {
 
-    private val workerBaseUrl = "https://api.lailanet.my.id"
+    private val workerBaseUrl = "https://lailanet.my.id"
     private val mainViewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
@@ -114,23 +125,19 @@ class MainActivity : HelperBaseComponentActivity() {
         var targetPhone by remember { mutableStateOf("") }
         var adminWa by remember { mutableStateOf("6285890014896") }
 
+        var digiflazzProducts by remember { mutableStateOf<List<DigiflazzProduct>>(emptyList()) }
+        var isLoadingProducts by remember { mutableStateOf(false) }
+        var selectedCategory by remember { mutableStateOf("Data") }
+        var selectedBrand by remember { mutableStateOf("SEMUA") }
+        var isCreatingOrder by remember { mutableStateOf(false) }
+        var activeOrder by remember { mutableStateOf<Pair<DigiflazzProduct, QrisOrderResult>?>(null) }
+
         var packageList by remember {
             mutableStateOf(
                 listOf(
                     VoucherPackage("Voucher Hemat 1 Hari (Stabil & Irit Kuota)", "Rp 2.000"),
                     VoucherPackage("Voucher Stabil 7 Hari (Gaming & Sosmed)", "Rp 5.000"),
                     VoucherPackage("Voucher Puas 30 Hari (Prioritas Jakarta)", "Rp 15.000")
-                )
-            )
-        }
-
-        var dataPackageList by remember {
-            mutableStateOf(
-                listOf(
-                    DataPackage("by.U / Telkomsel", "Kuota 10GB 7 Hari + Gratis Voucher VPN", "Rp 23.000"),
-                    DataPackage("by.U / Telkomsel", "Kuota 15GB 30 Hari + Gratis Voucher VPN", "Rp 60.000"),
-                    DataPackage("by.U / Telkomsel", "Kuota 30GB 30 Hari + Gratis Voucher VPN", "Rp 85.000"),
-                    DataPackage("Indosat", "Data Pure 6GB 30 Hari + Gratis Voucher VPN", "Rp 45.000")
                 )
             )
         }
@@ -149,8 +156,19 @@ class MainActivity : HelperBaseComponentActivity() {
                 if (cfg != null) {
                     adminWa = cfg.first
                     if (cfg.second.isNotEmpty()) packageList = cfg.second
-                    if (cfg.third.isNotEmpty()) dataPackageList = cfg.third
                 }
+            }
+        }
+
+        LaunchedEffect(showDataDialog, selectedCategory) {
+            if (showDataDialog) {
+                isLoadingProducts = true
+                selectedBrand = "SEMUA"
+                val list = withContext(Dispatchers.IO) {
+                    fetchDigiflazzProducts(category = selectedCategory)
+                }
+                digiflazzProducts = list
+                isLoadingProducts = false
             }
         }
 
@@ -160,7 +178,6 @@ class MainActivity : HelperBaseComponentActivity() {
             statusMessage.isNotEmpty() -> statusMessage
             else -> "Status: Terputus"
         }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -321,7 +338,7 @@ class MainActivity : HelperBaseComponentActivity() {
                         .height(46.dp)
                 ) {
                     Text(
-                        text = "Beli Paket Data",
+                        text = "Beli Paket & Pulsa",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF7C3AED)
@@ -391,6 +408,7 @@ class MainActivity : HelperBaseComponentActivity() {
                 )
             }
         }
+
         if (showGuideDialog) {
             AlertDialog(
                 onDismissRequest = { showGuideDialog = false },
@@ -410,192 +428,107 @@ class MainActivity : HelperBaseComponentActivity() {
                     ) {
                         Text(
                             text = "1. Wajib Memiliki Kuota Aktif:\nLailaNet bekerja di atas jaringan internet kartu seluler (Telkomsel/by.U, Indosat, XL, Tri, Smartfren) atau Wi-Fi aktif Anda.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF334155),
-                            lineHeight = 18.sp
-                        )
-                        Text(
-                            text = "2. Fungsi Penghemat Kuota & Stabilizer:\nLailaNet menjaga kecepatan internet tetap stabil dan mencegah aplikasi video menyedot kuota berlebihan secara mendadak, sehingga paket mingguan/bulanan lebih awet.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF334155),
-                            lineHeight = 18.sp
-                        )
-                        Text(
-                            text = "3. Beli Paket Data = Gratis Voucher:\nJika kuota utama habis, pesan paket data resmi di menu \"Beli Paket Data\" (harga normal konter) dan dapatkan kode voucher LailaNet gratis sesuai masa aktif paket.",
-                            fontSize = 13.sp,
-                            color = Color(0xFF334155),
-                            lineHeight = 18.sp
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showGuideDialog = false }) {
-                        Text("Mengerti")
-                    }
-                }
-            )
-        }
+    private fun formatRupiah(amount: Int): String {
+        val formatter = NumberFormat.getInstance(Locale("in", "ID"))
+        return "Rp ${formatter.format(amount)}"
+    }
 
-        if (showPriceDialog) {
-            AlertDialog(
-                onDismissRequest = { showPriceDialog = false },
-                title = {
-                    Text(
-                        text = "Pilih Voucher LailaNet",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = "Khusus bagi Anda yang sudah memiliki kuota operator / Wi-Fi sendiri. Ketuk paket untuk memesan via WhatsApp Admin:",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
-                        packageList.forEach { pkg ->
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        showPriceDialog = false
-                                        val devId = fetchHardwareId()
-                                        val pesan = "Halo Admin LailaNet, saya ingin membeli Voucher:\n• Paket: ${pkg.nama}\n• Harga: ${pkg.harga}\n• ID Perangkat: $devId\n\nMohon info pembayarannya. Terima kasih."
-                                        openWhatsApp(adminWa, pesan)
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = pkg.nama,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF1E293B),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = pkg.harga,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF2563EB)
-                                    )
-                                }
-                            }
+    private fun openBrowserUrl(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: Exception) {
+            toast("Tidak dapat membuka browser pembayaran")
+        }
+    }
+
+    private fun fetchDigiflazzProducts(
+        brand: String? = null,
+        category: String? = null
+    ): List<DigiflazzProduct> {
+        return try {
+            val params = mutableListOf<String>()
+            if (!brand.isNullOrBlank()) params.add("brand=${URLEncoder.encode(brand, "UTF-8")}")
+            if (!category.isNullOrBlank()) params.add("category=${URLEncoder.encode(category, "UTF-8")}")
+            val query = if (params.isNotEmpty()) "?${params.joinToString("&")}" else ""
+
+            val connection = (URL("$workerBaseUrl/api/digiflazz/products$query").openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                connectTimeout = 10000
+                readTimeout = 10000
+            }
+
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(text)
+                if (json.optString("status") == "ok") {
+                    val arr = json.optJSONArray("products")
+                    val list = mutableListOf<DigiflazzProduct>()
+                    if (arr != null) {
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.getJSONObject(i)
+                            list.add(
+                                DigiflazzProduct(
+                                    sku = obj.optString("sku"),
+                                    nama = obj.optString("nama"),
+                                    brand = obj.optString("brand"),
+                                    kategori = obj.optString("kategori"),
+                                    harga = obj.optInt("harga"),
+                                    ket = obj.optString("ket")
+                                )
+                            )
                         }
                     }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showPriceDialog = false }) {
-                        Text("Tutup")
-                    }
+                    return list
                 }
-            )
+            }
+            emptyList()
+        } catch (_: Exception) {
+            emptyList()
         }
+    }
 
-        if (showDataDialog) {
-            AlertDialog(
-                onDismissRequest = { showDataDialog = false },
-                title = {
-                    Text(
-                        text = "Toko Paket Data Resmi",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+    private fun createQrisOrder(
+        sku: String,
+        tujuan: String,
+        harga: Int,
+        nama: String
+    ): QrisOrderResult? {
+        return try {
+            val payload = JSONObject().apply {
+                put("sku", sku)
+                put("tujuan", tujuan)
+                put("harga", harga)
+                put("nama", nama)
+            }.toString()
+
+            val connection = (URL("$workerBaseUrl/api/order/qris").openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                connectTimeout = 12000
+                readTimeout = 12000
+                doOutput = true
+            }
+
+            connection.outputStream.use { os ->
+                os.write(payload.toByteArray(Charsets.UTF_8))
+            }
+
+            if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                val text = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = JSONObject(text)
+                if (json.optString("status") == "ok") {
+                    return QrisOrderResult(
+                        orderId = json.optString("orderId"),
+                        qrString = json.optString("qrString"),
+                        paymentUrl = json.optString("paymentUrl")
                     )
-                },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = targetPhone,
-                            onValueChange = { targetPhone = it },
-                            singleLine = true,
-                            label = { Text("Nomor HP Tujuan") },
-                            placeholder = { Text("Contoh: 085156xxxxxx") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = "Isi nomor HP tujuan, lalu ketuk paket di bawah (Setiap pembelian kuota di sini GRATIS Voucher LailaNet):",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
-                        dataPackageList.forEach { dp ->
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val phone = targetPhone.trim()
-                                        if (phone.length < 9) {
-                                            toast("Masukkan nomor HP tujuan yang valid terlebih dahulu")
-                                            return@clickable
-                                        }
-                                        showDataDialog = false
-                                        val devId = fetchHardwareId()
-                                        val pesan = "Halo Admin LailaNet, saya mau beli Paket Data:\n• Operator: ${dp.operator}\n• Paket: ${dp.nama}\n• Harga: ${dp.harga}\n• Nomor Tujuan: $phone\n• ID Perangkat: $devId\n\nMohon diproses beserta bonus voucher LailaNet-nya. Terima kasih."
-                                        openWhatsApp(adminWa, pesan)
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = dp.operator,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF7C3AED)
-                                        )
-                                        Text(
-                                            text = dp.nama,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 13.sp,
-                                            color = Color(0xFF1E293B)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = dp.harga,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF2563EB)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showDataDialog = false }) {
-                        Text("Tutup")
-                    }
                 }
-            )
+            }
+            null
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -662,7 +595,7 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
-    private fun fetchStoreConfig(): Triple<String, List<VoucherPackage>, List<DataPackage>>? {
+    private fun fetchStoreConfig(): Triple<String, List<VoucherPackage>, List<Any>>? {
         return try {
             val connection = (URL("$workerBaseUrl/api/config").openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -683,22 +616,7 @@ class MainActivity : HelperBaseComponentActivity() {
                         vpList.add(VoucherPackage(obj.optString("name"), obj.optString("price")))
                     }
                 }
-
-                val dpArr = json.optJSONArray("data_packages")
-                val dpList = mutableListOf<DataPackage>()
-                if (dpArr != null) {
-                    for (i in 0 until dpArr.length()) {
-                        val obj = dpArr.getJSONObject(i)
-                        dpList.add(
-                            DataPackage(
-                                operator = obj.optString("operator"),
-                                nama = obj.optString("name"),
-                                harga = obj.optString("price")
-                            )
-                        )
-                    }
-                }
-                Triple(wa, vpList, dpList)
+                Triple(wa, vpList, emptyList())
             } else null
         } catch (_: Exception) {
             null
@@ -720,17 +638,17 @@ class MainActivity : HelperBaseComponentActivity() {
                     return@withContext
                 }
                 val v2rayConfig = result.first!!
-val rawInfo = result.second ?: "Aktif"
-val paketLabel = when {
-    v2rayConfig.contains(":443") -> "Paket Hemat • 350 Kbps"
-    v2rayConfig.contains(":8443") -> "Paket Reguler • 650 Kbps"
-    v2rayConfig.contains(":2053") -> "Paket Turbo • 900 Kbps"
-    v2rayConfig.contains(":2083") -> "Paket VIP • 1300 Kbps"
-    v2rayConfig.contains(":2087") -> "Paket Sultan • 1800 Kbps"
-    else -> "Paket Standar"
-}
-val infoText = "$paketLabel | $rawInfo"
-val remainingMs = result.third
+                val rawInfo = result.second ?: "Aktif"
+                val paketLabel = when {
+                    v2rayConfig.contains(":443") -> "Paket Hemat • 350 Kbps"
+                    v2rayConfig.contains(":8443") -> "Paket Reguler • 650 Kbps"
+                    v2rayConfig.contains(":2053") -> "Paket Turbo • 900 Kbps"
+                    v2rayConfig.contains(":2083") -> "Paket VIP • 1300 Kbps"
+                    v2rayConfig.contains(":2087") -> "Paket Sultan • 1800 Kbps"
+                    else -> "Paket Standar"
+                }
+                val infoText = "$paketLabel | $rawInfo"
+                val remainingMs = result.third
 
                 MmkvManager.encodeSettings("LAST_VOUCHER_CODE", voucherInput)
                 MmkvManager.encodeSettings("LAST_VOUCHER_EXP", infoText)
@@ -742,105 +660,3 @@ val remainingMs = result.third
                 val serverList = MmkvManager.decodeServerList("")
                 if (serverList.isNotEmpty()) {
                     val targetGuid = serverList.first()
-                    MmkvManager.setSelectServer(targetGuid)
-                    mainViewModel.updateSelectedGuid(targetGuid)
-                    onState(false, "", infoText)
-                    requestServiceStart()
-
-                    if (remainingMs > 0) {
-                        scheduleExpireAlarm(remainingMs)
-                        lifecycleScope.launch {
-                            delay(remainingMs)
-                            if (mainViewModel.uiState.value.isRunning) {
-                                LauncherManager.stopService(this@MainActivity)
-                                toast("Waktu voucher LailaNet telah habis")
-                            }
-                        }
-                    }
-                } else {
-                    onState(false, "Status: Format konfigurasi server salah", null)
-                }
-            }
-        }
-    }
-
-    private fun fetchVoucherData(voucher: String): Triple<String?, String?, Long> {
-        val lower = voucher.lowercase()
-        if (lower.startsWith("vmess://") || lower.startsWith("vless://") ||
-            lower.startsWith("trojan://") || lower.startsWith("ss://")
-        ) {
-            return Triple(voucher, "Akses Langsung", 0L)
-        }
-
-        return try {
-            val devId = URLEncoder.encode(fetchHardwareId(), "UTF-8")
-            val encCode = URLEncoder.encode(voucher, "UTF-8")
-            val apiUrl = "$workerBaseUrl/api/voucher/verify?code=$encCode&device_id=$devId"
-
-            val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "Mozilla/5.0")
-                connectTimeout = 8000
-                readTimeout = 8000
-            }
-
-            val code = connection.responseCode
-            val stream = if (code == HttpURLConnection.HTTP_OK) connection.inputStream else connection.errorStream
-            val responseText = stream?.bufferedReader()?.use { it.readText() } ?: ""
-            val json = JSONObject(responseText)
-
-            if (code == HttpURLConnection.HTTP_OK && json.optString("status") == "ok") {
-                val link = json.optString("vless_link", "")
-                if (link.isEmpty()) {
-                    return Triple(null, "Link server belum diisi admin pada voucher ini", 0L)
-                }
-                val isUnlimited = json.optBoolean("is_unlimited", false)
-                val expMs = json.optLong("expired_at", 0L)
-                val validUntilMs = json.optLong("valid_until", expMs)
-                val remMs = json.optLong("remaining_ms", 0L)
-                val remUptimeMs = json.optLong("remaining_uptime_ms", 0L)
-
-                val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
-                val infoText = if (isUnlimited) {
-                    "Aktif | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
-                } else {
-                    val sisaMenit = Math.ceil(remUptimeMs / 60000.0).toInt()
-                    "Sisa Waktu: ${sisaMenit} Menit | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
-                }
-                Triple(link, infoText, remMs)
-            } else {
-                Triple(null, json.optString("message", "Kode voucher tidak valid"), 0L)
-            }
-        } catch (e: Exception) {
-            Triple(null, "Error: ${e.javaClass.simpleName} - ${e.message}", 0L)
-        }
-    }
-
-    private fun requestServiceStart() {
-        if (!SettingsManager.isVpnMode()) {
-            startV2Ray()
-            return
-        }
-        val intent = VpnService.prepare(this)
-        if (intent == null) startV2Ray() else requestVpnPermission.launch(intent)
-    }
-
-    private fun startV2Ray() {
-        if (mainViewModel.uiState.value.selectedGuid.isNullOrEmpty()) {
-            toast("Profil server belum terpilih")
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
-            checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
-        }
-        LauncherManager.startService(this)
-    }
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
-            moveTaskToBack(false)
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
-    }
-}
