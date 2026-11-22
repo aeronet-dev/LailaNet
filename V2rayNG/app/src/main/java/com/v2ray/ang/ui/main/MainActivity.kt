@@ -754,7 +754,6 @@ class MainActivity : HelperBaseComponentActivity() {
                 }
             )
         }
-    }
 
     private fun formatRupiah(amount: Int): String {
         val formatter = NumberFormat.getInstance(Locale("in", "ID"))
