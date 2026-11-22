@@ -754,12 +754,12 @@ class MainActivity : HelperBaseComponentActivity() {
                 }
             )
         }
-
+    }
+    
     private fun formatRupiah(amount: Int): String {
         val formatter = NumberFormat.getInstance(Locale("in", "ID"))
         return "Rp ${formatter.format(amount)}"
     }
- }
 
     private fun openBrowserUrl(url: String) {
         try {
