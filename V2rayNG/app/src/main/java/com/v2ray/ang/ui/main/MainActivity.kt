@@ -82,7 +82,7 @@ data class QrisOrderResult(
 
 class MainActivity : HelperBaseComponentActivity() {
 
-    private val workerBaseUrl = "https://lailanet.my.id"
+    private val workerBaseUrl = "https://api.lailanet.my.id"
     private val mainViewModel: MainViewModel by viewModels {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
