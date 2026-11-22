@@ -409,7 +409,7 @@ class MainActivity : HelperBaseComponentActivity() {
             }
         }
 
-        if (showGuideDialog) {
+                if (showGuideDialog) {
             AlertDialog(
                 onDismissRequest = { showGuideDialog = false },
                 title = {
@@ -428,10 +428,338 @@ class MainActivity : HelperBaseComponentActivity() {
                     ) {
                         Text(
                             text = "1. Wajib Memiliki Kuota Aktif:\nLailaNet bekerja di atas jaringan internet kartu seluler (Telkomsel/by.U, Indosat, XL, Tri, Smartfren) atau Wi-Fi aktif Anda.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = "2. Fungsi Penghemat Kuota & Stabilizer:\nLailaNet menjaga kecepatan internet tetap stabil dan mencegah aplikasi video menyedot kuota berlebihan secara mendadak, sehingga paket mingguan/bulanan lebih awet.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = "3. Beli Paket Otomatis via QRIS:\nPesan kuota atau pulsa langsung di menu \"Beli Paket & Pulsa\" dengan pembayaran QRIS otomatis.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF334155),
+                            lineHeight = 18.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showGuideDialog = false }) {
+                        Text("Mengerti")
+                    }
+                }
+            )
+        }
+
+        if (showPriceDialog) {
+            AlertDialog(
+                onDismissRequest = { showPriceDialog = false },
+                title = {
+                    Text(
+                        text = "Pilih Voucher LailaNet",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Khusus bagi Anda yang sudah memiliki kuota operator / Wi-Fi sendiri. Ketuk paket untuk memesan via WhatsApp Admin:",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                        packageList.forEach { pkg ->
+                            Card(
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        showPriceDialog = false
+                                        val devId = fetchHardwareId()
+                                        val pesan = "Halo Admin LailaNet, saya ingin membeli Voucher:\n• Paket: ${pkg.nama}\n• Harga: ${pkg.harga}\n• ID Perangkat: $devId\n\nMohon info pembayarannya. Terima kasih."
+                                        openWhatsApp(adminWa, pesan)
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = pkg.nama,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF1E293B),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = pkg.harga,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showPriceDialog = false }) {
+                        Text("Tutup")
+                    }
+                }
+            )
+        }
+
+        if (showDataDialog) {
+            val categories = listOf("Data", "Pulsa", "Games", "E-Money")
+            val availableBrands = remember(digiflazzProducts) {
+                listOf("SEMUA") + digiflazzProducts.map { it.brand }.distinct()
+            }
+            val filteredProducts = remember(digiflazzProducts, selectedBrand) {
+                if (selectedBrand == "SEMUA") digiflazzProducts
+                else digiflazzProducts.filter { it.brand.equals(selectedBrand, ignoreCase = true) }
+            }
+
+            AlertDialog(
+                onDismissRequest = {
+                    if (!isCreatingOrder) showDataDialog = false
+                },
+                title = {
+                    Text(
+                        text = "Beli Paket & Pulsa (QRIS Otomatis)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 460.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = targetPhone,
+                            onValueChange = { targetPhone = it },
+                            singleLine = true,
+                            enabled = !isCreatingOrder,
+                            label = { Text("Nomor HP / ID Tujuan") },
+                            placeholder = { Text("Contoh: 08123456789") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            categories.forEach { cat ->
+                                FilterChip(
+                                    selected = selectedCategory == cat,
+                                    onClick = { if (!isCreatingOrder) selectedCategory = cat },
+                                    label = { Text(cat, fontSize = 12.sp) }
+                                )
+                            }
+                        }
+
+                        if (availableBrands.size > 2) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                availableBrands.forEach { br ->
+                                    FilterChip(
+                                        selected = selectedBrand == br,
+                                        onClick = { if (!isCreatingOrder) selectedBrand = br },
+                                        label = { Text(br, fontSize = 11.sp) }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isCreatingOrder) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Membuat tagihan QRIS Duitku...", fontSize = 13.sp)
+                                                   } else if (isLoadingProducts) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("Memuat daftar produk...", fontSize = 13.sp)
+                            }
+                        } else if (filteredProducts.isEmpty()) {
+                            Text(
+                                text = "Belum ada produk tersedia pada kategori ini.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B),
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Isi nomor tujuan, lalu ketuk produk untuk bayar via QRIS:",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            filteredProducts.forEach { prod ->
+                                Card(
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            val tujuan = targetPhone.trim()
+                                            if (tujuan.length < 5) {
+                                                toast("Masukkan nomor HP / ID tujuan terlebih dahulu")
+                                                return@clickable
+                                            }
+                                            isCreatingOrder = true
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                val orderRes = createQrisOrder(
+                                                    sku = prod.sku,
+                                                    tujuan = tujuan,
+                                                    harga = prod.harga,
+                                                    nama = prod.nama
+                                                )
+                                                withContext(Dispatchers.Main) {
+                                                    isCreatingOrder = false
+                                                    if (orderRes != null && orderRes.paymentUrl.isNotEmpty()) {
+                                                        showDataDialog = false
+                                                        activeOrder = Pair(prod, orderRes)
+                                                        openBrowserUrl(orderRes.paymentUrl)
+                                                    } else {
+                                                        toast("Gagal membuat tagihan QRIS. Coba lagi.")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = prod.brand,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF7C3AED)
+                                            )
+                                            Text(
+                                                text = prod.nama,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF1E293B)
+                                            )
+                                            if (prod.ket.isNotEmpty()) {
+                                                Text(
+                                                    text = prod.ket,
+                                                    fontSize = 11.sp,
+                                                    color = Color(0xFF64748B)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = formatRupiah(prod.harga),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = Color(0xFF2563EB)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !isCreatingOrder,
+                        onClick = { showDataDialog = false }
+                    ) {
+                        Text("Tutup")
+                    }
+                }
+            )
+        }
+
+        activeOrder?.let { (prod, order) ->
+            AlertDialog(
+                onDismissRequest = { activeOrder = null },
+                title = {
+                    Text(
+                        text = "Tagihan QRIS Dibuat",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("ID Pesanan: ${order.orderId}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Produk: ${prod.nama}", fontSize = 13.sp)
+                        Text("Total Bayar: ${formatRupiah(prod.harga)}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2563EB))
+                        Text(
+                            text = "Silakan selesaikan pembayaran QRIS pada halaman Duitku yang terbuka. Produk otomatis diproses setelah pembayaran berhasil.",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { openBrowserUrl(order.paymentUrl) }) {
+                        Text("Buka Halaman QRIS")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { activeOrder = null }) {
+                        Text("Selesai")
+                    }
+                }
+            )
+        }
+    }
+
     private fun formatRupiah(amount: Int): String {
         val formatter = NumberFormat.getInstance(Locale("in", "ID"))
         return "Rp ${formatter.format(amount)}"
     }
+ }
 
     private fun openBrowserUrl(url: String) {
         try {
@@ -660,3 +988,105 @@ class MainActivity : HelperBaseComponentActivity() {
                 val serverList = MmkvManager.decodeServerList("")
                 if (serverList.isNotEmpty()) {
                     val targetGuid = serverList.first()
+                    MmkvManager.setSelectServer(targetGuid)
+                    mainViewModel.updateSelectedGuid(targetGuid)
+                    onState(false, "", infoText)
+                    requestServiceStart()
+
+                    if (remainingMs > 0) {
+                        scheduleExpireAlarm(remainingMs)
+                        lifecycleScope.launch {
+                            delay(remainingMs)
+                            if (mainViewModel.uiState.value.isRunning) {
+                                LauncherManager.stopService(this@MainActivity)
+                                toast("Waktu voucher LailaNet telah habis")
+                            }
+                        }
+                    }
+                } else {
+                    onState(false, "Status: Format konfigurasi server salah", null)
+                }
+            }
+        }
+    }
+
+    private fun fetchVoucherData(voucher: String): Triple<String?, String?, Long> {
+        val lower = voucher.lowercase()
+        if (lower.startsWith("vmess://") || lower.startsWith("vless://") ||
+            lower.startsWith("trojan://") || lower.startsWith("ss://")
+        ) {
+            return Triple(voucher, "Akses Langsung", 0L)
+        }
+
+        return try {
+            val devId = URLEncoder.encode(fetchHardwareId(), "UTF-8")
+            val encCode = URLEncoder.encode(voucher, "UTF-8")
+            val apiUrl = "$workerBaseUrl/api/voucher/verify?code=$encCode&device_id=$devId"
+
+            val connection = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+                connectTimeout = 8000
+                readTimeout = 8000
+            }
+
+            val code = connection.responseCode
+            val stream = if (code == HttpURLConnection.HTTP_OK) connection.inputStream else connection.errorStream
+            val responseText = stream?.bufferedReader()?.use { it.readText() } ?: ""
+            val json = JSONObject(responseText)
+
+            if (code == HttpURLConnection.HTTP_OK && json.optString("status") == "ok") {
+                val link = json.optString("vless_link", "")
+                if (link.isEmpty()) {
+                    return Triple(null, "Link server belum diisi admin pada voucher ini", 0L)
+                }
+                val isUnlimited = json.optBoolean("is_unlimited", false)
+                val expMs = json.optLong("expired_at", 0L)
+                val validUntilMs = json.optLong("valid_until", expMs)
+                val remMs = json.optLong("remaining_ms", 0L)
+                val remUptimeMs = json.optLong("remaining_uptime_ms", 0L)
+
+                val fmt = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+                val infoText = if (isUnlimited) {
+                    "Aktif | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
+                } else {
+                    val sisaMenit = Math.ceil(remUptimeMs / 60000.0).toInt()
+                    "Sisa Waktu: ${sisaMenit} Menit | Berlaku s/d: ${fmt.format(Date(validUntilMs))}"
+                }
+                Triple(link, infoText, remMs)
+            } else {
+                Triple(null, json.optString("message", "Kode voucher tidak valid"), 0L)
+            }
+        } catch (e: Exception) {
+            Triple(null, "Error: ${e.javaClass.simpleName} - ${e.message}", 0L)
+        }
+    }
+
+    private fun requestServiceStart() {
+        if (!SettingsManager.isVpnMode()) {
+            startV2Ray()
+            return
+        }
+        val intent = VpnService.prepare(this)
+        if (intent == null) startV2Ray() else requestVpnPermission.launch(intent)
+    }
+
+    private fun startV2Ray() {
+        if (mainViewModel.uiState.value.selectedGuid.isNullOrEmpty()) {
+            toast("Profil server belum terpilih")
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+            checkAndRequestPermission(PermissionType.ACCESS_LOCAL_NETWORK) {}
+        }
+        LauncherManager.startService(this)
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_BUTTON_B) {
+            moveTaskToBack(false)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+}
